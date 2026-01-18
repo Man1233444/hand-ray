@@ -6,13 +6,14 @@
 <style>
 html, body {
   margin: 0;
+  padding: 0;
   width: 100%;
   height: 100%;
   background: black;
   overflow: hidden;
 }
 
-video, canvas {
+#video {
   position: absolute;
   width: 100%;
   height: 100%;
@@ -28,81 +29,98 @@ video, canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 10;
   cursor: pointer;
+}
+
+.sniper-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* allow camera tap through */
+  z-index: 5;
+}
+
+/* Dark edges */
+.sniper-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  border-radius: 50%;
+}
+
+/* White scope border */
+.scope-circle {
+  position: absolute;
+  width: 70vmin;
+  height: 70vmin;
+  border: 4px solid white;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Red crosshair */
+.crosshair {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.crosshair::before, .crosshair::after {
+  content: "";
+  position: absolute;
+  background: red;
+}
+
+.crosshair::before {
+  width: 100%;
+  height: 3px;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.crosshair::after {
+  width: 3px;
+  height: 100%;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 </style>
 </head>
 <body>
 
-<video id="video" playsinline autoplay muted></video>
-<canvas id="canvas"></canvas>
+<video id="video" autoplay playsinline></video>
 <div id="start">TAP TO START</div>
+
+<div class="sniper-overlay">
+  <div class="scope-circle"></div>
+  <div class="crosshair"></div>
+</div>
 
 <script>
 const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
 const startBtn = document.getElementById("start");
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
 
-  // Start back camera
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" },
     audio: false
   });
+
   video.srcObject = stream;
-  video.play();
-
-  requestAnimationFrame(drawScope);
 });
-
-function drawScope() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw full camera feed behind (already visible via <video>)
-
-  // Draw dark overlay outside scope
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Scope circle in center (just draw border)
-  const cx = canvas.width/2;
-  const cy = canvas.height/2;
-  const radius = Math.min(canvas.width, canvas.height) * 0.35;
-
-  // Clear the circle visually by using globalCompositeOperation
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-
-  // Scope border
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.stroke();
-
-  // Crosshair
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(cx - 30, cy);
-  ctx.lineTo(cx + 30, cy);
-  ctx.moveTo(cx, cy - 30);
-  ctx.lineTo(cx, cy + 30);
-  ctx.stroke();
-
-  requestAnimationFrame(drawScope);
-}
 </script>
 
 </body>
