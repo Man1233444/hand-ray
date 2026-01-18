@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Full-Screen Sniper Scope</title>
+<title>Full-Screen Sniper Scope with Auto Zoom</title>
 <style>
 html, body {
   margin: 0;
@@ -18,6 +18,8 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform-origin: center center;
+  transition: transform 0.2s linear;
 }
 
 #start {
@@ -39,20 +41,10 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* allow camera tap through */
+  pointer-events: none;
   z-index: 5;
 }
 
-/* Dark edges */
-.sniper-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  border-radius: 50%;
-}
-
-/* White scope border */
 .scope-circle {
   position: absolute;
   width: 70vmin;
@@ -64,7 +56,6 @@ html, body {
   transform: translate(-50%, -50%);
 }
 
-/* Red crosshair */
 .crosshair {
   position: absolute;
   width: 60px;
@@ -110,6 +101,13 @@ html, body {
 const video = document.getElementById("video");
 const startBtn = document.getElementById("start");
 
+let lastFrameX = null;
+let lastFrameY = null;
+let steadyTime = 0; // in seconds
+let zoomLevel = 1; // CSS scale
+const maxZoom = 2; // 2x zoom
+const zoomDuration = 300; // seconds to reach full zoom (5 minutes)
+
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
@@ -120,7 +118,40 @@ startBtn.addEventListener("click", async () => {
   });
 
   video.srcObject = stream;
+
+  requestAnimationFrame(checkSteady);
 });
+
+function checkSteady(timestamp){
+  // Simple check: use center of video as reference
+  const cx = video.videoWidth/2 || 0;
+  const cy = video.videoHeight/2 || 0;
+
+  if(lastFrameX === null){
+    lastFrameX = cx;
+    lastFrameY = cy;
+  }
+
+  const dx = Math.abs(cx - lastFrameX);
+  const dy = Math.abs(cy - lastFrameY);
+  const movement = Math.hypot(dx, dy);
+
+  // If movement < threshold, count as steady
+  if(movement < 2){ // tiny movement allowed
+    steadyTime += 1/60; // approx seconds per frame at 60fps
+  } else {
+    steadyTime = 0; // reset if camera moves
+  }
+
+  lastFrameX = cx;
+  lastFrameY = cy;
+
+  // Compute zoom based on steadyTime
+  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
+  video.style.transform = `scale(${zoomLevel})`;
+
+  requestAnimationFrame(checkSteady);
+}
 </script>
 
 </body>
