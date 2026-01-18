@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope with Zoom Reset on Movement</title>
+<title>Sniper Scope with Smart Zoom</title>
 <style>
 html, body { margin:0; padding:0; width:100%; height:100%; background:black; overflow:hidden; }
 #video { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; transition: transform 0.2s linear; }
@@ -31,12 +31,15 @@ const startBtn = document.getElementById("start");
 
 let steadyTime = 0;
 const maxZoom = 2;
-const zoomDuration = 17;
+const zoomDuration = 17; // seconds to full zoom
 let zoomLevel = 1;
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
 let lastPixel = null;
+
+const movementThreshold = 20; // higher = ignore small shakes
+const smoothFactor = 0.05; // for easing zoom back
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -59,18 +62,28 @@ function autoZoom(){
     const data = ctx.getImageData(w/2,h/2,1,1).data;
     const pixel = [data[0],data[1],data[2]];
 
+    let movementDetected = false;
     if(lastPixel){
       const delta = Math.hypot(pixel[0]-lastPixel[0], pixel[1]-lastPixel[1], pixel[2]-lastPixel[2]);
-      if(delta > 5){ steadyTime = 0; } // movement detected, reset zoom
-      else steadyTime += 1/60;
+      if(delta > movementThreshold){ movementDetected = true; }
+      else { steadyTime += 1/60; }
     } else {
       steadyTime += 1/60;
     }
     lastPixel = pixel;
-  }
 
-  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
-  video.style.transform = `scale(${zoomLevel})`;
+    if(movementDetected){
+      steadyTime = 0; // reset timer
+      // Smoothly ease zoom back to 1x
+      zoomLevel += (1 - zoomLevel) * smoothFactor;
+    } else {
+      // Gradually zoom up
+      const targetZoom = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
+      zoomLevel += (targetZoom - zoomLevel) * smoothFactor;
+    }
+
+    video.style.transform = `scale(${zoomLevel})`;
+  }
 
   requestAnimationFrame(autoZoom);
 }
