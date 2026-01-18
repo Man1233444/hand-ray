@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Full-Screen Sniper Scope with Auto Zoom</title>
+<title>Full-Screen Sniper Scope with Auto-Zoom</title>
 <style>
 html, body {
   margin: 0;
@@ -101,12 +101,13 @@ html, body {
 const video = document.getElementById("video");
 const startBtn = document.getElementById("start");
 
-let lastFrameX = null;
-let lastFrameY = null;
-let steadyTime = 0; // in seconds
-let zoomLevel = 1; // CSS scale
-const maxZoom = 2; // 2x zoom
-const zoomDuration = 300; // seconds to reach full zoom (5 minutes)
+let steadyTime = 0; // seconds the camera stays steady
+let zoomLevel = 1; // initial zoom
+const maxZoom = 2; // max 2x zoom
+const zoomDuration = 17; // seconds to reach full zoom
+
+let lastCX = null;
+let lastCY = null;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -122,32 +123,31 @@ startBtn.addEventListener("click", async () => {
   requestAnimationFrame(checkSteady);
 });
 
-function checkSteady(timestamp){
-  // Simple check: use center of video as reference
+function checkSteady(){
   const cx = video.videoWidth/2 || 0;
   const cy = video.videoHeight/2 || 0;
 
-  if(lastFrameX === null){
-    lastFrameX = cx;
-    lastFrameY = cy;
+  if(lastCX === null){
+    lastCX = cx;
+    lastCY = cy;
   }
 
-  const dx = Math.abs(cx - lastFrameX);
-  const dy = Math.abs(cy - lastFrameY);
+  const dx = Math.abs(cx - lastCX);
+  const dy = Math.abs(cy - lastCY);
   const movement = Math.hypot(dx, dy);
 
-  // If movement < threshold, count as steady
-  if(movement < 2){ // tiny movement allowed
-    steadyTime += 1/60; // approx seconds per frame at 60fps
+  // If movement is tiny, count as steady
+  if(movement < 2){
+    steadyTime += 1/60; // approx 60 FPS
   } else {
     steadyTime = 0; // reset if camera moves
   }
 
-  lastFrameX = cx;
-  lastFrameY = cy;
+  lastCX = cx;
+  lastCY = cy;
 
-  // Compute zoom based on steadyTime
-  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
+  // Calculate zoom based on steady time
+  zoomLevel = 1 + Math.min(steadyTime/zoomDuration, 1)*(maxZoom-1);
   video.style.transform = `scale(${zoomLevel})`;
 
   requestAnimationFrame(checkSteady);
