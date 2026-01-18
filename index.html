@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope with Zoom Reset on Movement</title>
+<title>Sniper Scope with Zoom Reset on Move</title>
 <style>
 html, body {
   margin: 0;
@@ -105,8 +105,9 @@ let steadyTime = 0; // seconds camera stays steady
 let zoomLevel = 1;
 const maxZoom = 2; // 2x zoom
 const zoomDuration = 17; // seconds to reach full zoom
-let lastFrameX = null;
-let lastFrameY = null;
+
+let lastAcc = { x: 0, y: 0, z: 0 };
+let moved = false;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -119,35 +120,40 @@ startBtn.addEventListener("click", async () => {
 
   video.srcObject = stream;
 
+  // Listen to device motion to detect movement
+  if(window.DeviceMotionEvent){
+    window.addEventListener('devicemotion', (e)=>{
+      const acc = e.accelerationIncludingGravity;
+      if(!acc) return;
+
+      const dx = acc.x - lastAcc.x;
+      const dy = acc.y - lastAcc.y;
+      const dz = acc.z - lastAcc.z;
+
+      const delta = Math.hypot(dx, dy, dz);
+
+      // If movement above threshold, reset zoom timer
+      moved = delta > 0.2;
+
+      lastAcc.x = acc.x;
+      lastAcc.y = acc.y;
+      lastAcc.z = acc.z;
+    });
+  }
+
   requestAnimationFrame(autoZoom);
 });
 
 function autoZoom(){
-  // Use the video’s center as reference
-  const cx = video.videoWidth / 2 || 0;
-  const cy = video.videoHeight / 2 || 0;
-
-  if(lastFrameX === null){
-    lastFrameX = cx;
-    lastFrameY = cy;
-  }
-
-  const dx = Math.abs(cx - lastFrameX);
-  const dy = Math.abs(cy - lastFrameY);
-  const movement = Math.hypot(dx, dy);
-
-  // If movement is small, count as steady
-  if(movement < 2){ 
-    steadyTime += 1/60; // approx seconds per frame
-  } else {
+  if(moved){
     steadyTime = 0; // reset zoom timer
+    moved = false;
+  } else {
+    steadyTime += 1/60; // approx 60 FPS
   }
 
-  lastFrameX = cx;
-  lastFrameY = cy;
-
-  // Compute zoom based on steadyTime
-  zoomLevel = 1 + Math.min(steadyTime/zoomDuration, 1)*(maxZoom-1);
+  // Compute zoom
+  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
   video.style.transform = `scale(${zoomLevel})`;
 
   requestAnimationFrame(autoZoom);
