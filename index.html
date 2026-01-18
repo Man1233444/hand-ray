@@ -58,10 +58,10 @@ let lastIndex = null;
 startBtn.addEventListener("click", () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
-  start();
+  startHandTracker();
 });
 
-function start() {
+function startHandTracker() {
   const hands = new Hands({
     locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
   });
@@ -104,7 +104,7 @@ function draw(results) {
     }
   }
 
-  // ===== Direction =====
+  // ===== Direction vector =====
   let dx = 0, dy = -1;
   if (lastWrist && lastIndex) {
     dx = lastIndex.x - lastWrist.x;
@@ -118,16 +118,21 @@ function draw(results) {
   const cy = canvas.height / 2;
   const radius = Math.min(canvas.width, canvas.height) * 0.35;
 
-  // Dark outside
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.beginPath();
-  ctx.rect(0,0,canvas.width,canvas.height);
-  ctx.arc(cx,cy,radius,0,Math.PI*2,true);
-  ctx.fill("evenodd");
+  // Dark overlay outside the scope
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Scope circle
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 6;
+  // Clear the scope circle area
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,0,Math.PI*2);
+  ctx.clip();
+  ctx.clearRect(cx-radius,cy-radius,radius*2,radius*2);
+  ctx.restore();
+
+  // Scope circle border
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(cx,cy,radius,0,Math.PI*2);
   ctx.stroke();
@@ -136,17 +141,17 @@ function draw(results) {
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(cx - 30, cy);
-  ctx.lineTo(cx + 30, cy);
-  ctx.moveTo(cx, cy - 30);
-  ctx.lineTo(cx, cy + 30);
+  ctx.moveTo(cx-25, cy);
+  ctx.lineTo(cx+25, cy);
+  ctx.moveTo(cx, cy-25);
+  ctx.lineTo(cx, cy+25);
   ctx.stroke();
 
-  // Aim indicator (moves slightly with hand)
-  const offset = 80;
+  // ===== Aim indicator (green dot along direction) =====
+  const offset = 120;
   ctx.fillStyle = "lime";
   ctx.beginPath();
-  ctx.arc(cx + dx*offset, cy + dy*offset, 6, 0, Math.PI*2);
+  ctx.arc(cx + dx*offset, cy + dy*offset, 8, 0, Math.PI*2);
   ctx.fill();
 }
 </script>
