@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope with Stable Zoom</title>
+<title>Sniper Scope Stable Zoom</title>
 <style>
 html, body { margin:0; padding:0; width:100%; height:100%; background:black; overflow:hidden; }
 #video { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; transition: transform 0.2s linear; }
@@ -37,11 +37,11 @@ let zoomLevel = 1;
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
 
-// For movement smoothing
+// Movement smoothing
 let pixelHistory = [];
-const historyLength = 5; // average over 5 frames
-const movementThreshold = 50; // larger = ignore small shakes
-const smoothFactor = 0.05; // easing zoom changes
+const historyLength = 10; // more frames for stability
+const movementThreshold = 100; // higher = ignore small shakes
+const smoothFactor = 0.05; // easing zoom
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
