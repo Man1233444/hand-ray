@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Hand Sniper Scope</title>
+<title>Full-Screen Sniper Scope</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -85,13 +85,13 @@ function startHandTracker() {
 }
 
 function draw(results) {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ===== Hand tracking =====
+  // Predictive hand tracking
   if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
-    const h = results.multiHandLandmarks[0];
-    const wrist = { x: h[0].x * canvas.width, y: h[0].y * canvas.height };
-    const index = { x: h[5].x * canvas.width, y: h[5].y * canvas.height };
+    const hand = results.multiHandLandmarks[0];
+    const wrist = { x: hand[0].x * canvas.width, y: hand[0].y * canvas.height };
+    const index = { x: hand[5].x * canvas.width, y: hand[5].y * canvas.height };
 
     if (!lastWrist) {
       lastWrist = wrist;
@@ -104,51 +104,50 @@ function draw(results) {
     }
   }
 
-  // ===== Direction vector =====
+  // Direction vector
   let dx = 0, dy = -1;
   if (lastWrist && lastIndex) {
     dx = lastIndex.x - lastWrist.x;
     dy = lastIndex.y - lastWrist.y;
-    const l = Math.hypot(dx,dy);
-    if (l > 0.001) { dx/=l; dy/=l; }
+    const l = Math.hypot(dx, dy);
+    if (l > 0.001) { dx /= l; dy /= l; }
   }
 
-  // ===== Sniper scope =====
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const radius = Math.min(canvas.width, canvas.height) * 0.35;
+  // Draw a long green line from wrist forward
+  if(lastWrist){
+    const lineLen = 2000;
+    const endX = lastWrist.x + dx * lineLen;
+    const endY = lastWrist.y + dy * lineLen;
 
-  // Dark overlay outside the scope
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = "lime";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(lastWrist.x, lastWrist.y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
 
-  // Clear the scope circle area
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx,cy,radius,0,Math.PI*2);
-  ctx.clip();
-  ctx.clearRect(cx-radius,cy-radius,radius*2,radius*2);
-  ctx.restore();
+    // Wrist indicator
+    ctx.beginPath();
+    ctx.arc(lastWrist.x, lastWrist.y, 20, 0, Math.PI*2);
+    ctx.fillStyle = "lime";
+    ctx.fill();
+  }
 
-  // Scope circle border
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(cx,cy,radius,0,Math.PI*2);
-  ctx.stroke();
+  // Draw full-screen sniper scope crosshair
+  const cx = canvas.width/2;
+  const cy = canvas.height/2;
 
-  // Crosshair
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(cx-25, cy);
-  ctx.lineTo(cx+25, cy);
-  ctx.moveTo(cx, cy-25);
-  ctx.lineTo(cx, cy+25);
+  ctx.moveTo(cx-30, cy);
+  ctx.lineTo(cx+30, cy);
+  ctx.moveTo(cx, cy-30);
+  ctx.lineTo(cx, cy+30);
   ctx.stroke();
 
-  // ===== Aim indicator (green dot along direction) =====
-  const offset = 120;
+  // Optional: aim dot moves along hand direction
+  const offset = 150;
   ctx.fillStyle = "lime";
   ctx.beginPath();
   ctx.arc(cx + dx*offset, cy + dy*offset, 8, 0, Math.PI*2);
