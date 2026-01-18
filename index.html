@@ -35,7 +35,7 @@ video, canvas {
 </head>
 <body>
 
-<video id="video" playsinline autoplay></video>
+<video id="video" playsinline autoplay muted></video>
 <canvas id="canvas"></canvas>
 <div id="start">TAP TO START</div>
 
@@ -64,39 +64,41 @@ startBtn.addEventListener("click", async () => {
 });
 
 function drawScope() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw dark edges overlay
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Draw full camera feed behind (already visible via <video>)
 
-  // Clear center for camera view
+  // Draw dark overlay outside scope
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Scope circle in center (just draw border)
   const cx = canvas.width/2;
   const cy = canvas.height/2;
-  const radius = Math.min(canvas.width, canvas.height)*0.35;
+  const radius = Math.min(canvas.width, canvas.height) * 0.35;
 
-  ctx.save();
+  // Clear the circle visually by using globalCompositeOperation
+  ctx.globalCompositeOperation = "destination-out";
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.clip();
-  ctx.clearRect(cx-radius, cy-radius, radius*2, radius*2);
-  ctx.restore();
+  ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
 
-  // Scope circle
+  // Scope border
   ctx.strokeStyle = "white";
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI*2);
   ctx.stroke();
 
-  // Crosshair in center
+  // Crosshair
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(cx-30, cy);
-  ctx.lineTo(cx+30, cy);
-  ctx.moveTo(cx, cy-30);
-  ctx.lineTo(cx, cy+30);
+  ctx.moveTo(cx - 30, cy);
+  ctx.lineTo(cx + 30, cy);
+  ctx.moveTo(cx, cy - 30);
+  ctx.lineTo(cx, cy + 30);
   ctx.stroke();
 
   requestAnimationFrame(drawScope);
