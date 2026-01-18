@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Hand Ray Tracker</title>
+<title>Predictive Hand Ray 3D</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -52,9 +52,9 @@ const startBtn = document.getElementById("start");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Smoothing for wrist position
-let smoothedWx = null;
-let smoothedWy = null;
+let lastWrist = null;
+let lastIndex = null;
+let lastTime = null;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -70,65 +70,72 @@ function startHandTracker() {
   hands.setOptions({
     maxNumHands: 1,
     modelComplexity: 1,
-    minDetectionConfidence: 0.8,
-    minTrackingConfidence: 0.8
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
   });
 
   hands.onResults(results => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const now = performance.now();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+    if(results.multiHandLandmarks && results.multiHandLandmarks.length>0){
+      const hand = results.multiHandLandmarks[0];
+      const wrist = {x: hand[0].x * canvas.width, y: hand[0].y * canvas.height};
+      const index = {x: hand[5].x * canvas.width, y: hand[5].y * canvas.height};
 
-    const hand = results.multiHandLandmarks[0];
+      // Smooth the wrist
+      if(!lastWrist){
+        lastWrist = {...wrist};
+        lastIndex = {...index};
+      } else {
+        lastWrist.x = lastWrist.x*0.7 + wrist.x*0.3;
+        lastWrist.y = lastWrist.y*0.7 + wrist.y*0.3;
+        lastIndex.x = lastIndex.x*0.7 + index.x*0.3;
+        lastIndex.y = lastIndex.y*0.7 + index.y*0.3;
+      }
 
-    const wrist = hand[0];      // wrist
-    const indexBase = hand[5];  // index finger base
+      lastTime = now;
+    } else if(lastWrist && lastTime){
+      // Predict wrist forward if hand lost
+      const dt = (now - lastTime)/16.67; // approx frames
+      lastWrist.x += (lastIndex.x - lastWrist.x)*0.05*dt;
+      lastWrist.y += (lastIndex.y - lastWrist.y)*0.05*dt;
+    }
 
-    // Convert to canvas coordinates
-    const wx = wrist.x * canvas.width;
-    const wy = wrist.y * canvas.height;
-    const ix = indexBase.x * canvas.width;
-    const iy = indexBase.y * canvas.height;
+    if(lastWrist && lastIndex){
+      // Direction vector
+      let dx = lastIndex.x - lastWrist.x;
+      let dy = lastIndex.y - lastWrist.y;
+      const len = Math.hypot(dx,dy);
+      if(len>0.001){ dx/=len; dy/=len; }
 
-    // Simple smoothing
-    if (smoothedWx === null) smoothedWx = wx;
-    if (smoothedWy === null) smoothedWy = wy;
-    smoothedWx = smoothedWx * 0.7 + wx * 0.3;
-    smoothedWy = smoothedWy * 0.7 + wy * 0.3;
+      // 3D-style line: extend far
+      const lineLen = 2000;
+      const endX = lastWrist.x + dx*lineLen;
+      const endY = lastWrist.y + dy*lineLen;
 
-    // Direction vector from wrist → index base
-    let dx = ix - smoothedWx;
-    let dy = iy - smoothedWy;
-    const len = Math.hypot(dx, dy);
-    if (len < 0.001) return;
-    dx /= len;
-    dy /= len;
+      // Line thickness simulates depth
+      ctx.lineWidth = 6; 
+      ctx.strokeStyle = "lime";
+      ctx.beginPath();
+      ctx.moveTo(lastWrist.x,lastWrist.y);
+      ctx.lineTo(endX,endY);
+      ctx.stroke();
 
-    // Draw a long green line (2000px) forward
-    const endX = smoothedWx + dx * 2000;
-    const endY = smoothedWy + dy * 2000;
-
-    ctx.beginPath();
-    ctx.moveTo(smoothedWx, smoothedWy);
-    ctx.lineTo(endX, endY);
-    ctx.strokeStyle = "lime";
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    // Draw a big circle at the wrist for tracking
-    ctx.beginPath();
-    ctx.arc(smoothedWx, smoothedWy, 20, 0, Math.PI*2);
-    ctx.fillStyle = "lime";
-    ctx.fill();
+      // Big wrist circle
+      ctx.beginPath();
+      ctx.arc(lastWrist.x,lastWrist.y,20,0,Math.PI*2);
+      ctx.fillStyle="lime";
+      ctx.fill();
+    }
   });
 
-  const camera = new Camera(video, {
-    facingMode: "environment",
-    width: 1280,
-    height: 720,
-    onFrame: async () => { await hands.send({ image: video }); }
+  const camera = new Camera(video,{
+    facingMode:"environment",
+    width:1280,
+    height:720,
+    onFrame: async ()=>{ await hands.send({image:video}); }
   });
-
   camera.start();
 }
 </script>
