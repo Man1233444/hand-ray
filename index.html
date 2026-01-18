@@ -3,10 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Full-Screen Sniper Scope</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
 <style>
 html, body {
   margin: 0;
@@ -52,91 +48,48 @@ const startBtn = document.getElementById("start");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let lastWrist = null;
-let lastIndex = null;
-
-startBtn.addEventListener("click", () => {
+startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
-  startHandTracker();
+
+  // Start back camera
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment" },
+    audio: false
+  });
+  video.srcObject = stream;
+  video.play();
+
+  requestAnimationFrame(drawScope);
 });
 
-function startHandTracker() {
-  const hands = new Hands({
-    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-  });
+function drawScope() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  hands.setOptions({
-    maxNumHands: 1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7
-  });
+  // Draw dark edges overlay
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  hands.onResults(draw);
-
-  const camera = new Camera(video, {
-    facingMode: "environment",
-    width: 1280,
-    height: 720,
-    onFrame: async () => await hands.send({ image: video })
-  });
-
-  camera.start();
-}
-
-function draw(results) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Predictive hand tracking
-  if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
-    const hand = results.multiHandLandmarks[0];
-    const wrist = { x: hand[0].x * canvas.width, y: hand[0].y * canvas.height };
-    const index = { x: hand[5].x * canvas.width, y: hand[5].y * canvas.height };
-
-    if (!lastWrist) {
-      lastWrist = wrist;
-      lastIndex = index;
-    } else {
-      lastWrist.x = lastWrist.x*0.7 + wrist.x*0.3;
-      lastWrist.y = lastWrist.y*0.7 + wrist.y*0.3;
-      lastIndex.x = lastIndex.x*0.7 + index.x*0.3;
-      lastIndex.y = lastIndex.y*0.7 + index.y*0.3;
-    }
-  }
-
-  // Direction vector
-  let dx = 0, dy = -1;
-  if (lastWrist && lastIndex) {
-    dx = lastIndex.x - lastWrist.x;
-    dy = lastIndex.y - lastWrist.y;
-    const l = Math.hypot(dx, dy);
-    if (l > 0.001) { dx /= l; dy /= l; }
-  }
-
-  // Draw a long green line from wrist forward
-  if(lastWrist){
-    const lineLen = 2000;
-    const endX = lastWrist.x + dx * lineLen;
-    const endY = lastWrist.y + dy * lineLen;
-
-    ctx.strokeStyle = "lime";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(lastWrist.x, lastWrist.y);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-
-    // Wrist indicator
-    ctx.beginPath();
-    ctx.arc(lastWrist.x, lastWrist.y, 20, 0, Math.PI*2);
-    ctx.fillStyle = "lime";
-    ctx.fill();
-  }
-
-  // Draw full-screen sniper scope crosshair
+  // Clear center for camera view
   const cx = canvas.width/2;
   const cy = canvas.height/2;
+  const radius = Math.min(canvas.width, canvas.height)*0.35;
 
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.clip();
+  ctx.clearRect(cx-radius, cy-radius, radius*2, radius*2);
+  ctx.restore();
+
+  // Scope circle
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Crosshair in center
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -146,12 +99,7 @@ function draw(results) {
   ctx.lineTo(cx, cy+30);
   ctx.stroke();
 
-  // Optional: aim dot moves along hand direction
-  const offset = 150;
-  ctx.fillStyle = "lime";
-  ctx.beginPath();
-  ctx.arc(cx + dx*offset, cy + dy*offset, 8, 0, Math.PI*2);
-  ctx.fill();
+  requestAnimationFrame(drawScope);
 }
 </script>
 
