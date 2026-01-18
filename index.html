@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Hand Line Spider Sense</title>
+<title>Hand Line AR</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -52,16 +52,9 @@ const startBtn = document.getElementById("start");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Smoothing variables
-let lastX = null;
-let lastY = null;
-
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
-
-  // Fullscreen for phone
   document.documentElement.requestFullscreen?.().catch(()=>{});
-
   startHandTracking();
 });
 
@@ -73,11 +66,47 @@ function startHandTracking() {
   hands.setOptions({
     maxNumHands: 1,
     modelComplexity: 1,
-    minDetectionConfidence: 0.8,
-    minTrackingConfidence: 0.8
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
   });
 
-  hands.onResults(drawHandLine);
+  // Draw line every frame
+  hands.onResults(results => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      return;
+    }
+
+    const hand = results.multiHandLandmarks[0];
+    const wrist = hand[0]; // wrist
+    const indexBase = hand[5]; // base of index finger
+
+    const wx = wrist.x * canvas.width;
+    const wy = wrist.y * canvas.height;
+    const ix = indexBase.x * canvas.width;
+    const iy = indexBase.y * canvas.height;
+
+    // Draw wrist for debug
+    ctx.beginPath();
+    ctx.arc(wx, wy, 10, 0, Math.PI*2);
+    ctx.fillStyle = "yellow";
+    ctx.fill();
+
+    // Draw index base for debug
+    ctx.beginPath();
+    ctx.arc(ix, iy, 10, 0, Math.PI*2);
+    ctx.fillStyle = "orange";
+    ctx.fill();
+
+    // Draw green line from wrist to index base
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(ix, iy);
+    ctx.strokeStyle = "lime";
+    ctx.lineWidth = 6; // thicker so visible
+    ctx.stroke();
+  });
 
   const camera = new Camera(video, {
     facingMode: "environment",
@@ -89,47 +118,6 @@ function startHandTracking() {
   });
 
   camera.start();
-}
-
-function drawHandLine(results) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (!results.multiHandLandmarks) return;
-
-  const hand = results.multiHandLandmarks[0];
-  const wrist = hand[0];      // Wrist
-  const indexBase = hand[5];  // Index finger base
-
-  const wx = wrist.x * canvas.width;
-  const wy = wrist.y * canvas.height;
-
-  let dx = indexBase.x - wrist.x;
-  let dy = indexBase.y - wrist.y;
-
-  const len = Math.hypot(dx, dy);
-  if (len < 0.001) return;
-
-  dx /= len;
-  dy /= len;
-
-  // Line smoothing
-  if (lastX === null) lastX = wx;
-  if (lastY === null) lastY = wy;
-  lastX = lastX * 0.7 + wx * 0.3;
-  lastY = lastY * 0.7 + wy * 0.3;
-
-  // Extend line far enough
-  const lineLength = 2000; // pixels
-  const endX = lastX + dx * lineLength;
-  const endY = lastY + dy * lineLength;
-
-  // Draw line
-  ctx.beginPath();
-  ctx.moveTo(lastX, lastY);
-  ctx.lineTo(endX, endY);
-  ctx.strokeStyle = "lime";
-  ctx.lineWidth = 4;
-  ctx.stroke();
 }
 </script>
 
