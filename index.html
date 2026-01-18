@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope with Smart Zoom</title>
+<title>Sniper Scope with Stable Zoom</title>
 <style>
 html, body { margin:0; padding:0; width:100%; height:100%; background:black; overflow:hidden; }
 #video { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; transition: transform 0.2s linear; }
@@ -36,10 +36,12 @@ let zoomLevel = 1;
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
-let lastPixel = null;
 
-const movementThreshold = 20; // higher = ignore small shakes
-const smoothFactor = 0.05; // for easing zoom back
+// For movement smoothing
+let pixelHistory = [];
+const historyLength = 5; // average over 5 frames
+const movementThreshold = 50; // larger = ignore small shakes
+const smoothFactor = 0.05; // easing zoom changes
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -52,9 +54,9 @@ startBtn.addEventListener("click", async () => {
 });
 
 function autoZoom(){
-  // Sample center pixel
   const w = video.videoWidth;
   const h = video.videoHeight;
+
   if(w > 0 && h > 0){
     canvas.width = w;
     canvas.height = h;
@@ -62,22 +64,28 @@ function autoZoom(){
     const data = ctx.getImageData(w/2,h/2,1,1).data;
     const pixel = [data[0],data[1],data[2]];
 
+    // Save last few pixels
+    pixelHistory.push(pixel);
+    if(pixelHistory.length > historyLength) pixelHistory.shift();
+
+    // Compute average delta over history
     let movementDetected = false;
-    if(lastPixel){
-      const delta = Math.hypot(pixel[0]-lastPixel[0], pixel[1]-lastPixel[1], pixel[2]-lastPixel[2]);
-      if(delta > movementThreshold){ movementDetected = true; }
-      else { steadyTime += 1/60; }
-    } else {
-      steadyTime += 1/60;
+    if(pixelHistory.length >= 2){
+      let totalDelta = 0;
+      for(let i=1;i<pixelHistory.length;i++){
+        const prev = pixelHistory[i-1];
+        const curr = pixelHistory[i];
+        totalDelta += Math.hypot(curr[0]-prev[0], curr[1]-prev[1], curr[2]-prev[2]);
+      }
+      const avgDelta = totalDelta / (pixelHistory.length-1);
+      if(avgDelta > movementThreshold) movementDetected = true;
     }
-    lastPixel = pixel;
 
     if(movementDetected){
-      steadyTime = 0; // reset timer
-      // Smoothly ease zoom back to 1x
-      zoomLevel += (1 - zoomLevel) * smoothFactor;
+      steadyTime = 0; // reset zoom timer
+      zoomLevel += (1 - zoomLevel) * smoothFactor; // ease back
     } else {
-      // Gradually zoom up
+      steadyTime += 1/60;
       const targetZoom = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
       zoomLevel += (targetZoom - zoomLevel) * smoothFactor;
     }
