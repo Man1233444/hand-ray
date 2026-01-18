@@ -2,89 +2,17 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope with Zoom Reset on Move</title>
+<title>Sniper Scope with Zoom Reset on Movement</title>
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: black;
-  overflow: hidden;
-}
-
-#video {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform-origin: center center;
-  transition: transform 0.2s linear;
-}
-
-#start {
-  position: fixed;
-  inset: 0;
-  background: black;
-  color: white;
-  font-size: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  cursor: pointer;
-}
-
-.sniper-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.scope-circle {
-  position: absolute;
-  width: 70vmin;
-  height: 70vmin;
-  border: 4px solid white;
-  border-radius: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.crosshair {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-.crosshair::before, .crosshair::after {
-  content: "";
-  position: absolute;
-  background: red;
-}
-
-.crosshair::before {
-  width: 100%;
-  height: 3px;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-}
-
-.crosshair::after {
-  width: 3px;
-  height: 100%;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-}
+html, body { margin:0; padding:0; width:100%; height:100%; background:black; overflow:hidden; }
+#video { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; transition: transform 0.2s linear; }
+#start { position:fixed; inset:0; background:black; color:white; font-size:32px; display:flex; align-items:center; justify-content:center; z-index:10; cursor:pointer; }
+.sniper-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5; }
+.scope-circle { position:absolute; width:70vmin; height:70vmin; border:4px solid white; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
+.crosshair { position:absolute; width:60px; height:60px; top:50%; left:50%; transform:translate(-50%,-50%); }
+.crosshair::before, .crosshair::after { content:""; position:absolute; background:red; }
+.crosshair::before { width:100%; height:3px; top:50%; left:0; transform:translateY(-50%); }
+.crosshair::after { width:3px; height:100%; top:0; left:50%; transform:translateX(-50%); }
 </style>
 </head>
 <body>
@@ -101,58 +29,46 @@ html, body {
 const video = document.getElementById("video");
 const startBtn = document.getElementById("start");
 
-let steadyTime = 0; // seconds camera stays steady
+let steadyTime = 0;
+const maxZoom = 2;
+const zoomDuration = 17;
 let zoomLevel = 1;
-const maxZoom = 2; // 2x zoom
-const zoomDuration = 17; // seconds to reach full zoom
 
-let lastAcc = { x: 0, y: 0, z: 0 };
-let moved = false;
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+let lastPixel = null;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment" },
-    audio: false
-  });
-
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
   video.srcObject = stream;
-
-  // Listen to device motion to detect movement
-  if(window.DeviceMotionEvent){
-    window.addEventListener('devicemotion', (e)=>{
-      const acc = e.accelerationIncludingGravity;
-      if(!acc) return;
-
-      const dx = acc.x - lastAcc.x;
-      const dy = acc.y - lastAcc.y;
-      const dz = acc.z - lastAcc.z;
-
-      const delta = Math.hypot(dx, dy, dz);
-
-      // If movement above threshold, reset zoom timer
-      moved = delta > 0.2;
-
-      lastAcc.x = acc.x;
-      lastAcc.y = acc.y;
-      lastAcc.z = acc.z;
-    });
-  }
 
   requestAnimationFrame(autoZoom);
 });
 
 function autoZoom(){
-  if(moved){
-    steadyTime = 0; // reset zoom timer
-    moved = false;
-  } else {
-    steadyTime += 1/60; // approx 60 FPS
+  // Sample center pixel
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  if(w > 0 && h > 0){
+    canvas.width = w;
+    canvas.height = h;
+    ctx.drawImage(video,0,0,w,h);
+    const data = ctx.getImageData(w/2,h/2,1,1).data;
+    const pixel = [data[0],data[1],data[2]];
+
+    if(lastPixel){
+      const delta = Math.hypot(pixel[0]-lastPixel[0], pixel[1]-lastPixel[1], pixel[2]-lastPixel[2]);
+      if(delta > 5){ steadyTime = 0; } // movement detected, reset zoom
+      else steadyTime += 1/60;
+    } else {
+      steadyTime += 1/60;
+    }
+    lastPixel = pixel;
   }
 
-  // Compute zoom
   zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
   video.style.transform = `scale(${zoomLevel})`;
 
