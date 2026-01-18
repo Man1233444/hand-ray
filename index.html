@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Predictive Hand Ray 3D</title>
+<title>Hand Sniper Scope</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -54,89 +54,100 @@ canvas.height = window.innerHeight;
 
 let lastWrist = null;
 let lastIndex = null;
-let lastTime = null;
 
-startBtn.addEventListener("click", async () => {
+startBtn.addEventListener("click", () => {
   startBtn.style.display = "none";
   document.documentElement.requestFullscreen?.().catch(()=>{});
-  startHandTracker();
+  start();
 });
 
-function startHandTracker() {
+function start() {
   const hands = new Hands({
     locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
   });
 
   hands.setOptions({
     maxNumHands: 1,
-    modelComplexity: 1,
     minDetectionConfidence: 0.7,
     minTrackingConfidence: 0.7
   });
 
-  hands.onResults(results => {
-    const now = performance.now();
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  hands.onResults(draw);
 
-    if(results.multiHandLandmarks && results.multiHandLandmarks.length>0){
-      const hand = results.multiHandLandmarks[0];
-      const wrist = {x: hand[0].x * canvas.width, y: hand[0].y * canvas.height};
-      const index = {x: hand[5].x * canvas.width, y: hand[5].y * canvas.height};
-
-      // Smooth the wrist
-      if(!lastWrist){
-        lastWrist = {...wrist};
-        lastIndex = {...index};
-      } else {
-        lastWrist.x = lastWrist.x*0.7 + wrist.x*0.3;
-        lastWrist.y = lastWrist.y*0.7 + wrist.y*0.3;
-        lastIndex.x = lastIndex.x*0.7 + index.x*0.3;
-        lastIndex.y = lastIndex.y*0.7 + index.y*0.3;
-      }
-
-      lastTime = now;
-    } else if(lastWrist && lastTime){
-      // Predict wrist forward if hand lost
-      const dt = (now - lastTime)/16.67; // approx frames
-      lastWrist.x += (lastIndex.x - lastWrist.x)*0.05*dt;
-      lastWrist.y += (lastIndex.y - lastWrist.y)*0.05*dt;
-    }
-
-    if(lastWrist && lastIndex){
-      // Direction vector
-      let dx = lastIndex.x - lastWrist.x;
-      let dy = lastIndex.y - lastWrist.y;
-      const len = Math.hypot(dx,dy);
-      if(len>0.001){ dx/=len; dy/=len; }
-
-      // 3D-style line: extend far
-      const lineLen = 2000;
-      const endX = lastWrist.x + dx*lineLen;
-      const endY = lastWrist.y + dy*lineLen;
-
-      // Line thickness simulates depth
-      ctx.lineWidth = 6; 
-      ctx.strokeStyle = "lime";
-      ctx.beginPath();
-      ctx.moveTo(lastWrist.x,lastWrist.y);
-      ctx.lineTo(endX,endY);
-      ctx.stroke();
-
-      // Big wrist circle
-      ctx.beginPath();
-      ctx.arc(lastWrist.x,lastWrist.y,20,0,Math.PI*2);
-      ctx.fillStyle="lime";
-      ctx.fill();
-    }
+  const camera = new Camera(video, {
+    facingMode: "environment",
+    width: 1280,
+    height: 720,
+    onFrame: async () => await hands.send({ image: video })
   });
 
-  const camera = new Camera(video,{
-    facingMode:"environment",
-    width:1280,
-    height:720,
-    onFrame: async ()=>{ await hands.send({image:video}); }
-  });
   camera.start();
+}
+
+function draw(results) {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // ===== Hand tracking =====
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+    const h = results.multiHandLandmarks[0];
+    const wrist = { x: h[0].x * canvas.width, y: h[0].y * canvas.height };
+    const index = { x: h[5].x * canvas.width, y: h[5].y * canvas.height };
+
+    if (!lastWrist) {
+      lastWrist = wrist;
+      lastIndex = index;
+    } else {
+      lastWrist.x = lastWrist.x*0.7 + wrist.x*0.3;
+      lastWrist.y = lastWrist.y*0.7 + wrist.y*0.3;
+      lastIndex.x = lastIndex.x*0.7 + index.x*0.3;
+      lastIndex.y = lastIndex.y*0.7 + index.y*0.3;
+    }
+  }
+
+  // ===== Direction =====
+  let dx = 0, dy = -1;
+  if (lastWrist && lastIndex) {
+    dx = lastIndex.x - lastWrist.x;
+    dy = lastIndex.y - lastWrist.y;
+    const l = Math.hypot(dx,dy);
+    if (l > 0.001) { dx/=l; dy/=l; }
+  }
+
+  // ===== Sniper scope =====
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = Math.min(canvas.width, canvas.height) * 0.35;
+
+  // Dark outside
+  ctx.fillStyle = "rgba(0,0,0,0.75)";
+  ctx.beginPath();
+  ctx.rect(0,0,canvas.width,canvas.height);
+  ctx.arc(cx,cy,radius,0,Math.PI*2,true);
+  ctx.fill("evenodd");
+
+  // Scope circle
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,0,Math.PI*2);
+  ctx.stroke();
+
+  // Crosshair
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - 30, cy);
+  ctx.lineTo(cx + 30, cy);
+  ctx.moveTo(cx, cy - 30);
+  ctx.lineTo(cx, cy + 30);
+  ctx.stroke();
+
+  // Aim indicator (moves slightly with hand)
+  const offset = 80;
+  ctx.fillStyle = "lime";
+  ctx.beginPath();
+  ctx.arc(cx + dx*offset, cy + dy*offset, 6, 0, Math.PI*2);
+  ctx.fill();
 }
 </script>
 
