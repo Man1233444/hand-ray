@@ -1,91 +1,127 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Pose Sanity Test</title>
+<meta charset="UTF-8">
+<title>Hand Line AR</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <style>
-html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  background:black;
-  overflow:hidden;
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  overflow: hidden;
 }
-video,canvas{
-  position:absolute;
-  width:100%;
-  height:100%;
-  object-fit:cover;
+
+video, canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-#msg{
-  position:fixed;
-  top:10px;
-  left:10px;
-  color:white;
-  font-size:16px;
-  background:rgba(0,0,0,.5);
-  padding:6px;
+
+#start {
+  position: fixed;
+  inset: 0;
+  background: black;
+  color: white;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  cursor: pointer;
 }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline></video>
+<video id="video" playsinline></video>
 <canvas id="canvas"></canvas>
-<div id="msg">waiting…</div>
+<div id="start">TAP TO START</div>
 
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const msg = document.getElementById("msg");
+const start = document.getElementById("start");
 
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-const pose = new Pose({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+start.addEventListener("click", async () => {
+  start.style.display = "none";
+
+  // Fullscreen (best-effort)
+  document.documentElement.requestFullscreen?.().catch(()=>{});
+
+  startCamera();
 });
 
-pose.setOptions({
-  modelComplexity: 0,
-  smoothLandmarks: true,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
-
-pose.onResults(r=>{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(!r.poseLandmarks){
-    msg.textContent = "NO LANDMARKS";
-    return;
-  }
-
-  msg.textContent = "TRACKING";
-
-  // left & right wrist
-  [15,16].forEach(i=>{
-    const p = r.poseLandmarks[i];
-    if(!p) return;
-    ctx.beginPath();
-    ctx.arc(p.x*canvas.width,p.y*canvas.height,20,0,Math.PI*2);
-    ctx.fillStyle="lime";
-    ctx.fill();
+function startCamera() {
+  const hands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
   });
-});
 
-const cam = new Camera(video,{
-  onFrame: async()=>{ await pose.send({image:video}); },
-  width:1280,
-  height:720,
-  facingMode:"environment"
-});
-cam.start();
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.8,
+    minTrackingConfidence: 0.8
+  });
+
+  hands.onResults(draw);
+
+  const camera = new Camera(video, {
+    facingMode: "environment",
+    width: 1280,
+    height: 720,
+    onFrame: async () => {
+      await hands.send({ image: video });
+    }
+  });
+
+  camera.start();
+}
+
+function draw(results) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.multiHandLandmarks) return;
+
+  const hand = results.multiHandLandmarks[0];
+
+  // Wrist and index finger base (stable direction)
+  const wrist = hand[0];
+  const indexBase = hand[5];
+
+  const wx = wrist.x * canvas.width;
+  const wy = wrist.y * canvas.height;
+
+  let dx = indexBase.x - wrist.x;
+  let dy = indexBase.y - wrist.y;
+
+  const len = Math.hypot(dx, dy);
+  if (len < 0.001) return;
+
+  dx /= len;
+  dy /= len;
+
+  // Extend line far
+  const endX = wx + dx * 2000;
+  const endY = wy + dy * 2000;
+
+  // Draw line
+  ctx.beginPath();
+  ctx.moveTo(wx, wy);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = "lime";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+}
 </script>
 
 </body>
