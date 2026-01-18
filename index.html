@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Full-Screen Sniper Scope with Auto-Zoom</title>
+<title>Sniper Scope with Zoom Reset on Movement</title>
 <style>
 html, body {
   margin: 0;
@@ -101,11 +101,12 @@ html, body {
 const video = document.getElementById("video");
 const startBtn = document.getElementById("start");
 
-let steadyTime = 0; // seconds camera stays still
+let steadyTime = 0; // seconds camera stays steady
 let zoomLevel = 1;
 const maxZoom = 2; // 2x zoom
 const zoomDuration = 17; // seconds to reach full zoom
-let lastFrameTime = null;
+let lastFrameX = null;
+let lastFrameY = null;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -121,17 +122,32 @@ startBtn.addEventListener("click", async () => {
   requestAnimationFrame(autoZoom);
 });
 
-function autoZoom(timestamp){
-  if(!lastFrameTime) lastFrameTime = timestamp;
-  const delta = (timestamp - lastFrameTime)/1000; // seconds since last frame
-  lastFrameTime = timestamp;
+function autoZoom(){
+  // Use the video’s center as reference
+  const cx = video.videoWidth / 2 || 0;
+  const cy = video.videoHeight / 2 || 0;
 
-  // Simple steady detection: if camera feed is playing, count time
-  // This ignores actual movement and just measures continuous view
-  steadyTime += delta;
+  if(lastFrameX === null){
+    lastFrameX = cx;
+    lastFrameY = cy;
+  }
 
-  // Calculate zoom
-  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
+  const dx = Math.abs(cx - lastFrameX);
+  const dy = Math.abs(cy - lastFrameY);
+  const movement = Math.hypot(dx, dy);
+
+  // If movement is small, count as steady
+  if(movement < 2){ 
+    steadyTime += 1/60; // approx seconds per frame
+  } else {
+    steadyTime = 0; // reset zoom timer
+  }
+
+  lastFrameX = cx;
+  lastFrameY = cy;
+
+  // Compute zoom based on steadyTime
+  zoomLevel = 1 + Math.min(steadyTime/zoomDuration, 1)*(maxZoom-1);
   video.style.transform = `scale(${zoomLevel})`;
 
   requestAnimationFrame(autoZoom);
