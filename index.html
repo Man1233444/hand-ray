@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hand Ray (Fixed)</title>
+
+<!-- REQUIRED MEDIAPIPE FILES -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<style>
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  overflow: hidden;
+}
+
+video, canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#start {
+  position: fixed;
+  inset: 0;
+  background: black;
+  color: white;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+<div id="start">TAP TO START</div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const start = document.getElementById("start");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+start.onclick = async () => {
+  await document.documentElement.requestFullscreen?.();
+  start.remove();
+  startTracking();
+};
+
+function startTracking() {
+  const hands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
+  });
+
+  hands.onResults(results => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!results.multiHandLandmarks) return;
+
+    const hand = results.multiHandLandmarks[0];
+    const wrist = hand[0];
+    const mid = hand[9];
+
+    const wx = wrist.x * canvas.width;
+    const wy = wrist.y * canvas.height;
+
+    let dx = mid.x - wrist.x;
+    let dy = mid.y - wrist.y;
+
+    const len = Math.hypot(dx, dy);
+    if (len < 0.001) return;
+
+    dx /= len;
+    dy /= len;
+
+    const hitX = wx + dx * 2000;
+    const hitY = wy + dy * 2000;
+
+    // DRAW STRAIGHT LINE
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(hitX, hitY);
+    ctx.strokeStyle = "lime";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // RED IMPACT CIRCLE
+    ctx.beginPath();
+    ctx.arc(hitX, hitY, 30, 0, Math.PI * 2);
+    ctx.fillStyle = "red";
+    ctx.fill();
+  });
+
+  const camera = new Camera(video, {
+    onFrame: async () => {
+      await hands.send({ image: video });
+    },
+    width: 1280,
+    height: 720
+  });
+
+  camera.start();
+}
+</script>
+
+</body>
+</html>
