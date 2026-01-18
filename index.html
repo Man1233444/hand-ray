@@ -89,7 +89,7 @@ html, body {
 </head>
 <body>
 
-<video id="video" autoplay playsinline></video>
+<video id="video" autoplay playsinline muted></video>
 <div id="start">TAP TO START</div>
 
 <div class="sniper-overlay">
@@ -101,13 +101,11 @@ html, body {
 const video = document.getElementById("video");
 const startBtn = document.getElementById("start");
 
-let steadyTime = 0; // seconds the camera stays steady
-let zoomLevel = 1; // initial zoom
-const maxZoom = 2; // max 2x zoom
+let steadyTime = 0; // seconds camera stays still
+let zoomLevel = 1;
+const maxZoom = 2; // 2x zoom
 const zoomDuration = 17; // seconds to reach full zoom
-
-let lastCX = null;
-let lastCY = null;
+let lastFrameTime = null;
 
 startBtn.addEventListener("click", async () => {
   startBtn.style.display = "none";
@@ -120,37 +118,23 @@ startBtn.addEventListener("click", async () => {
 
   video.srcObject = stream;
 
-  requestAnimationFrame(checkSteady);
+  requestAnimationFrame(autoZoom);
 });
 
-function checkSteady(){
-  const cx = video.videoWidth/2 || 0;
-  const cy = video.videoHeight/2 || 0;
+function autoZoom(timestamp){
+  if(!lastFrameTime) lastFrameTime = timestamp;
+  const delta = (timestamp - lastFrameTime)/1000; // seconds since last frame
+  lastFrameTime = timestamp;
 
-  if(lastCX === null){
-    lastCX = cx;
-    lastCY = cy;
-  }
+  // Simple steady detection: if camera feed is playing, count time
+  // This ignores actual movement and just measures continuous view
+  steadyTime += delta;
 
-  const dx = Math.abs(cx - lastCX);
-  const dy = Math.abs(cy - lastCY);
-  const movement = Math.hypot(dx, dy);
-
-  // If movement is tiny, count as steady
-  if(movement < 2){
-    steadyTime += 1/60; // approx 60 FPS
-  } else {
-    steadyTime = 0; // reset if camera moves
-  }
-
-  lastCX = cx;
-  lastCY = cy;
-
-  // Calculate zoom based on steady time
-  zoomLevel = 1 + Math.min(steadyTime/zoomDuration, 1)*(maxZoom-1);
+  // Calculate zoom
+  zoomLevel = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
   video.style.transform = `scale(${zoomLevel})`;
 
-  requestAnimationFrame(checkSteady);
+  requestAnimationFrame(autoZoom);
 }
 </script>
 
