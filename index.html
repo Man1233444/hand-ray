@@ -17,7 +17,14 @@
       background: black;
     }
 
-    #desktopBlock {
+    /* Optional: message visible only on large screens */
+    @media (min-width: 900px) {
+      #desktopHint {
+        display: flex;
+      }
+    }
+
+    #desktopHint {
       position: fixed;
       inset: 0;
       background: black;
@@ -27,19 +34,18 @@
       align-items: center;
       text-align: center;
       font-size: 1.4em;
-      z-index: 999;
+      z-index: 10;
     }
   </style>
 </head>
 
 <body>
 
-<div id="desktopBlock">
-  This AR experience works on a phone only.
+<div id="desktopHint">
+  This AR experience is meant for phones.
 </div>
 
 <a-scene
-  id="scene"
   mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind;"
   vr-mode-ui="enabled: false"
   device-orientation-permission-ui="enabled: true">
@@ -56,15 +62,6 @@
   </a-entity>
 
 </a-scene>
-
-<script>
-  // Block desktop visually
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (!isMobile) {
-    document.getElementById('desktopBlock').style.display = 'flex';
-    document.getElementById('scene').style.display = 'none';
-  }
-</script>
 
 </body>
 </html>
