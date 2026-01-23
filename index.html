@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mobile AR Tracker with Printable Marker</title>
+<title>AR Cube Tracker with Printable Marker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body, html {
@@ -45,7 +45,8 @@
 <div id="startScreen">
   <h1>Print This Marker</h1>
   <p>Take a screenshot to print it</p>
-  <img id="marker" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/1-image-tracking/assets/target.png" alt="Marker">
+  <!-- Feature-rich marker with barcode embedded -->
+  <img id="marker" src="https://i.ibb.co/6Rpz4k5/ar-marker-barcode.png" alt="Marker">
   <button id="startBtn">Start AR</button>
 </div>
 
@@ -68,17 +69,18 @@ startBtn.onclick = async () => {
 
   const mindAR = new MindARThree({
     container: document.querySelector("#ar-container"),
+    // Replace this with your custom .mind file generated from the marker above
     imageTargetSrc: 'https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/1-image-tracking/assets/target.mind',
   });
 
   const { renderer, scene, camera } = mindAR;
 
-  // Add a cube to track marker
+  // Cube that will track the marker
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshNormalMaterial();
   const cube = new THREE.Mesh(geometry, material);
 
-  const anchor = mindAR.addAnchor(0); // first target
+  const anchor = mindAR.addAnchor(0); // first marker
   anchor.group.add(cube);
 
   anchor.onTargetFound = () => { cube.visible = true; };
