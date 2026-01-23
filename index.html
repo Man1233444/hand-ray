@@ -2,32 +2,31 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; background: black; }
   </style>
 </head>
 
-<body style="background: black;">
+<body>
 
-<!-- A-Frame + AR.js scene -->
 <a-scene
   vr-mode-ui="enabled: false"
   embedded
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- NFT/marker image — this is a downloadable marker for AR.js -->
+  <!-- Your Spider-Man marker -->
   <a-nft
     type="nft"
-    url="markers/my-marker"
+    url="markers/spiderman"
     smooth="true"
     smoothCount="10"
     smoothTolerance="0.01"
     smoothThreshold="0.01">
 
-    <!-- Cube on top of marker -->
+    <!-- 3D cube on the marker -->
     <a-box position="0 0.5 0" rotation="0 45 0" scale="0.5 0.5 0.5" color="#FF0000"></a-box>
 
   </a-nft>
