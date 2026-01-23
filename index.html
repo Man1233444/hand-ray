@@ -16,34 +16,10 @@
       overflow: hidden;
       background: black;
     }
-
-    /* Optional: message visible only on large screens */
-    @media (min-width: 900px) {
-      #desktopHint {
-        display: flex;
-      }
-    }
-
-    #desktopHint {
-      position: fixed;
-      inset: 0;
-      background: black;
-      color: white;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      font-size: 1.4em;
-      z-index: 10;
-    }
   </style>
 </head>
 
 <body>
-
-<div id="desktopHint">
-  This AR experience is meant for phones.
-</div>
 
 <a-scene
   mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind;"
