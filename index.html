@@ -2,13 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AR QR Cube</title>
+    <title>AR QR Cube Web</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <video id="camera" autoplay playsinline style="display:none;"></video>
+    <!-- Video feed from camera -->
+    <video id="camera" autoplay playsinline></video>
+    <!-- Canvas for QR scanning -->
     <canvas id="qr-canvas" style="display:none;"></canvas>
+
+    <!-- Three.js and jsQR -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
     <script src="script.js"></script>
