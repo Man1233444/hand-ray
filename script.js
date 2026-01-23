@@ -3,12 +3,11 @@ let canvas = document.getElementById('qr-canvas');
 let ctx = canvas.getContext('2d');
 
 let scene, camera3D, renderer, cube;
-let cubeWorldPos = null;      // Anchored cube position
+let cubeWorldPos = null;
 let lastDetectionTime = 0;
-const disappearDelay = 1500;  // ms
-const smoothing = 0.08;       // Smaller = smoother
+const disappearDelay = 1500; // milliseconds
+const smoothing = 0.08;
 
-// Optional: buffer last 5 QR positions for averaging
 let lastPositions = [];
 
 // Initialize Three.js
@@ -24,6 +23,7 @@ function initAR() {
     renderer.domElement.style.left = "0";
     document.body.appendChild(renderer.domElement);
 
+    // Cube
     let geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
     let material = new THREE.MeshNormalMaterial();
     cube = new THREE.Mesh(geometry, material);
@@ -38,13 +38,10 @@ function animate() {
     requestAnimationFrame(animate);
 
     if (cube.visible && cubeWorldPos) {
-        // Smoothly move cube to anchored position
         cube.position.lerp(cubeWorldPos, smoothing);
-        // Smooth rotation to face camera
         cube.lookAt(camera3D.position);
     }
 
-    // Hide cube if QR code hasn’t been detected for a while
     if (cube.visible && Date.now() - lastDetectionTime > disappearDelay) {
         cube.visible = false;
         cubeWorldPos = null;
@@ -78,35 +75,32 @@ function tick() {
         if (code) {
             lastDetectionTime = Date.now();
 
-            // Calculate QR center
+            // Compute QR center
             let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
             let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
 
             let xNorm = (centerX / canvas.width - 0.5) * 0.5;
             let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
 
-            // Convert to world coordinates
             let vector = new THREE.Vector3(xNorm, yNorm, -0.5);
             vector.unproject(camera3D);
 
-            // Add to buffer for smoothing
+            // Add to smoothing buffer
             lastPositions.push(vector.clone());
             if (lastPositions.length > 5) lastPositions.shift();
 
-            // Average positions
+            // Average buffer
             let avg = new THREE.Vector3(0, 0, 0);
             lastPositions.forEach(v => avg.add(v));
             avg.divideScalar(lastPositions.length);
 
-            // Set cube world position only if it’s the first detection
-            if (!cubeWorldPos) {
+            // If first detection, set cube position immediately
+            if (!cube.visible) {
                 cubeWorldPos = avg.clone();
+                cube.visible = true;
             } else {
-                // Smoothly update world position for tiny movements
                 cubeWorldPos.lerp(avg, 0.05);
             }
-
-            cube.visible = true;
         }
     }
 
