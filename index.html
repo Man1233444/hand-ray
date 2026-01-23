@@ -1,65 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Mobile AR Only</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta charset="UTF-8">
+<title>Mobile AR Working</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-      font-family: sans-serif;
-    }
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+  }
 
-    #blockDesktop {
-      position: fixed;
-      inset: 0;
-      background: black;
-      color: white;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      font-size: 1.5em;
-      z-index: 999;
-    }
+  #startScreen {
+    position: fixed;
+    inset: 0;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    text-align: center;
+  }
 
-    #startScreen {
-      position: fixed;
-      inset: 0;
-      background: white;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 10;
-      text-align: center;
-    }
+  #startBtn {
+    margin-top: 20px;
+    padding: 16px 32px;
+    font-size: 1.2em;
+  }
 
-    #startBtn {
-      margin-top: 20px;
-      padding: 16px 32px;
-      font-size: 1.2em;
-    }
+  #marker {
+    width: 280px;
+    border: 2px solid black;
+    margin-top: 10px;
+  }
 
-    #marker {
-      width: 280px;
-      border: 2px solid black;
-      margin-top: 10px;
-    }
-  </style>
+  a-scene {
+    position: fixed !important;
+    inset: 0;
+    z-index: 1;
+  }
+</style>
 </head>
 <body>
-
-<div id="blockDesktop">
-  ❌ This AR experience only works on a phone.<br><br>
-  Open this page on your mobile device.
-</div>
 
 <div id="startScreen">
   <h2>Print This Marker</h2>
@@ -69,44 +56,51 @@
 </div>
 
 <a-scene
-  mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind; autoStart: false;"
+  embedded
   renderer="colorManagement: true, physicallyCorrectLights"
   vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false">
+  device-orientation-permission-ui="enabled: true"
+  mindar-image="
+    imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind;
+    autoStart: false;
+  ">
 
-  <a-camera position="0 0 0"></a-camera>
+  <!-- Camera MUST exist for video -->
+  <a-camera
+    position="0 0 0"
+    look-controls="enabled: false"
+    cursor="rayOrigin: mouse">
+  </a-camera>
 
+  <!-- Marker anchor -->
   <a-entity mindar-image-target="targetIndex: 0">
     <a-box
       position="0 0 0.1"
       scale="0.3 0.3 0.3"
       color="#4CC3D9"
-      animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+      animation="property: rotation; to: 0 360 0; dur: 4000; loop: true">
     </a-box>
   </a-entity>
 
 </a-scene>
 
 <script>
-  // 🚫 Block desktop completely
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (!isMobile) {
-    document.getElementById('blockDesktop').style.display = 'flex';
-    document.querySelector('a-scene').style.display = 'none';
+const startBtn = document.getElementById('startBtn');
+const startScreen = document.getElementById('startScreen');
+const sceneEl = document.querySelector('a-scene');
+
+startBtn.onclick = async () => {
+  // Fullscreen FIRST (required for camera)
+  if (document.documentElement.requestFullscreen) {
+    await document.documentElement.requestFullscreen();
   }
 
-  // ▶ Start AR on phone
-  document.getElementById('startBtn').onclick = async () => {
-    document.getElementById('startScreen').style.display = 'none';
+  // Hide UI AFTER fullscreen
+  startScreen.style.display = 'none';
 
-    // Fullscreen (mobile only)
-    if (document.documentElement.requestFullscreen) {
-      await document.documentElement.requestFullscreen();
-    }
-
-    const scene = document.querySelector('a-scene');
-    scene.components['mindar-image'].start();
-  };
+  // Force MindAR start
+  await sceneEl.components['mindar-image'].start();
+};
 </script>
 
 </body>
