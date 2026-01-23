@@ -14,8 +14,10 @@
         <p>Allow camera access when prompted</p>
     </div>
 
-    <!-- Video feed and hidden QR canvas -->
+    <!-- Video feed for camera (must have separate closing tag) -->
     <video id="camera" autoplay playsinline></video>
+
+    <!-- Hidden canvas for QR scanning -->
     <canvas id="qr-canvas"></canvas>
 
     <!-- Libraries -->
@@ -24,3 +26,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
