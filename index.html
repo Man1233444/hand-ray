@@ -2,88 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AR Cube Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobile AR Only</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
   <style>
-    body { margin: 0; overflow: hidden; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      font-family: sans-serif;
+    }
+
+    #blockDesktop {
+      position: fixed;
+      inset: 0;
+      background: black;
+      color: white;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 1.5em;
+      z-index: 999;
+    }
+
     #startScreen {
-      position: absolute;
-      width: 100%; height: 100%;
+      position: fixed;
+      inset: 0;
+      background: white;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background: #fff;
       z-index: 10;
       text-align: center;
     }
+
     #startBtn {
       margin-top: 20px;
-      padding: 1em 2em;
-      font-size: 1.5em;
-      cursor: pointer;
+      padding: 16px 32px;
+      font-size: 1.2em;
     }
+
     #marker {
-      width: 300px;
-      height: 300px;
+      width: 280px;
       border: 2px solid black;
-      margin-top: 20px;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
+<div id="blockDesktop">
+  ❌ This AR experience only works on a phone.<br><br>
+  Open this page on your mobile device.
+</div>
+
 <div id="startScreen">
-  <h1>Print This Marker</h1>
-  <p>Take a screenshot and print it</p>
-  <!-- Using a working official MindAR example marker -->
-  <img id="marker" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" alt="marker">
+  <h2>Print This Marker</h2>
+  <img id="marker"
+    src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png">
   <button id="startBtn">Start AR</button>
 </div>
 
-<a-scene mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind; autoStart: false;"
-         color-space="sRGB"
-         renderer="colorManagement: true, physicallyCorrectLights"
-         vr-mode-ui="enabled: false"
-         device-orientation-permission-ui="enabled: false">
-
-  <a-assets>
-    <!-- No extra assets needed -->
-  </a-assets>
+<a-scene
+  mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind; autoStart: false;"
+  renderer="colorManagement: true, physicallyCorrectLights"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
 
   <a-camera position="0 0 0"></a-camera>
 
-  <!-- Anchor for the marker -->
   <a-entity mindar-image-target="targetIndex: 0">
-    <!-- Rotating cube -->
-    <a-box position="0 0 0.1" 
-           rotation="0 45 0" 
-           scale="0.3 0.3 0.3" 
-           color="#4CC3D9" 
-           animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
+    <a-box
+      position="0 0 0.1"
+      scale="0.3 0.3 0.3"
+      color="#4CC3D9"
+      animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
     </a-box>
   </a-entity>
 
 </a-scene>
 
 <script>
-  const startBtn = document.getElementById('startBtn');
-  const startScreen = document.getElementById('startScreen');
+  // 🚫 Block desktop completely
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile) {
+    document.getElementById('blockDesktop').style.display = 'flex';
+    document.querySelector('a-scene').style.display = 'none';
+  }
 
-  startBtn.onclick = async () => {
-    startScreen.style.display = 'none';
+  // ▶ Start AR on phone
+  document.getElementById('startBtn').onclick = async () => {
+    document.getElementById('startScreen').style.display = 'none';
 
-    // Fullscreen for mobile
+    // Fullscreen (mobile only)
     if (document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
 
-    // Start the AR scene
-    const sceneEl = document.querySelector('a-scene');
-    const mindarComponent = sceneEl.components['mindar-image'];
-    if (mindarComponent) mindarComponent.start();
+    const scene = document.querySelector('a-scene');
+    scene.components['mindar-image'].start();
   };
 </script>
 
