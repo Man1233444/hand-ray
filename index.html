@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AR Barcode Scanner</title>
+<title>Mobile AR Barcode Scanner</title>
 <style>
   body, html {
     margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
@@ -16,6 +16,7 @@
     justify-content: center; align-items: center;
     background-color: #f0f0f0;
     z-index: 10;
+    text-align: center;
   }
 
   #startBtn {
@@ -49,9 +50,10 @@
   <h1>AR Barcode Scanner</h1>
   <svg id="barcode"></svg>
   <button id="startBtn">Start</button>
+  <p>Take a screenshot of the barcode to print it.</p>
 </div>
 
-<video id="video" autoplay></video>
+<video id="video" autoplay playsinline></video>
 <canvas id="overlay"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
@@ -65,15 +67,15 @@ const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
 const ctx = overlay.getContext('2d');
 
-// Generate a printable barcode
-JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 2, height: 100});
+// Generate a large printable barcode
+JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
 
 let scene, camera, renderer, cube;
 let scanning = false;
 
 // Start button click
 startBtn.onclick = async () => {
-  // Go fullscreen
+  // Go fullscreen (optional on mobile)
   if (document.documentElement.requestFullscreen) {
     await document.documentElement.requestFullscreen();
   }
@@ -87,20 +89,23 @@ startBtn.onclick = async () => {
 
   // Wait until video metadata is loaded
   video.addEventListener('loadedmetadata', () => {
+    // Set overlay to video size
     overlay.width = video.videoWidth;
     overlay.height = video.videoHeight;
-    scanning = true;
 
-    init3D();
+    // Initialize Three.js
+    init3D(video.videoWidth / video.videoHeight);
+
+    scanning = true;
     requestAnimationFrame(scanLoop);
   });
 };
 
 // Initialize Three.js
-function init3D() {
+function init3D(aspectRatio) {
   scene = new THREE.Scene();
 
-  camera = new THREE.PerspectiveCamera(75, video.videoWidth / video.videoHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
   camera.position.z = 5;
 
   renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -120,18 +125,22 @@ function init3D() {
 function scanLoop() {
   if (!scanning) return;
 
-  // Draw video to overlay for barcode detection
-  overlay.width = video.videoWidth;
-  overlay.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0, overlay.width, overlay.height);
+  // Use a smaller canvas for faster barcode detection
+  const detectionWidth = 320;
+  const detectionHeight = detectionWidth * (video.videoHeight / video.videoWidth);
 
-  const imageData = ctx.getImageData(0, 0, overlay.width, overlay.height);
-  const code = jsQR(imageData.data, imageData.width, imageData.height);
+  ctx.drawImage(video, 0, 0, detectionWidth, detectionHeight);
+
+  const imageData = ctx.getImageData(0, 0, detectionWidth, detectionHeight);
+  const code = jsQR(imageData.data, detectionWidth, detectionHeight);
 
   if (code) {
     // Barcode detected → show cube
-    const x = (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2;
-    const y = (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2;
+    const scaleX = overlay.width / detectionWidth;
+    const scaleY = overlay.height / detectionHeight;
+
+    const x = ((code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2) * scaleX;
+    const y = ((code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2) * scaleY;
 
     // Convert to normalized device coordinates (-1 to 1)
     const nx = (x / overlay.width) * 2 - 1;
@@ -146,7 +155,6 @@ function scanLoop() {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
   } else {
-    // Hide cube if no barcode
     cube.visible = false;
   }
 
