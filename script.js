@@ -3,10 +3,38 @@ let canvas = document.getElementById('qr-canvas');
 let ctx = canvas.getContext('2d');
 
 let scene, camera3D, renderer, cube;
-let cubeSpawned = false;   // Track if cube is spawned
-let cubePosition = null;   // Store the cube’s fixed position
+let cubeSpawned = false;
+let cubePosition = null;
 
-// Initialize Three.js
+const startBtn = document.getElementById('start-btn');
+const startScreen = document.getElementById('start-screen');
+
+startBtn.addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    startAR();
+});
+
+function startAR() {
+    // Request fullscreen
+    if (document.body.requestFullscreen) {
+        document.body.requestFullscreen();
+    }
+
+    // Access camera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+            video.srcObject = stream;
+            video.setAttribute("playsinline", true);
+            video.play();
+            initAR();
+            tick();
+        })
+        .catch(err => {
+            alert("Camera access denied: " + err);
+        });
+}
+
+// Initialize Three.js scene
 function initAR() {
     scene = new THREE.Scene();
 
@@ -23,30 +51,23 @@ function initAR() {
     let geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
     let material = new THREE.MeshNormalMaterial();
     cube = new THREE.Mesh(geometry, material);
-    cube.visible = false;  // start hidden
+    cube.visible = false;
     scene.add(cube);
 
+    window.addEventListener('resize', onWindowResize);
     animate();
 }
 
-// Animate Three.js
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera3D);
 }
 
-// Access camera
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => {
-        video.srcObject = stream;
-        video.setAttribute("playsinline", true);
-        video.play();
-        initAR();
-        tick();
-    })
-    .catch(err => {
-        alert("Camera access denied: " + err);
-    });
+function onWindowResize() {
+    camera3D.aspect = window.innerWidth / window.innerHeight;
+    camera3D.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
 
 // QR detection loop
 function tick() {
@@ -58,23 +79,21 @@ function tick() {
         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         let code = jsQR(imageData.data, imageData.width, imageData.height);
 
-        // If QR detected and cube hasn't spawned yet
         if (code && !cubeSpawned) {
             cubeSpawned = true;
 
-            // Compute cube position in normalized camera coordinates
             let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width/2;
             let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height/2;
 
-            let xNorm = (centerX / canvas.width - 0.5) * 0.5; 
+            let xNorm = (centerX / canvas.width - 0.5) * 0.5;
             let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
 
-            cubePosition = new THREE.Vector3(xNorm, yNorm, -0.5); // store fixed position
+            cubePosition = new THREE.Vector3(xNorm, yNorm, -0.5);
             cube.position.copy(cubePosition);
             cube.visible = true;
         }
 
-        // If cube already spawned, keep it at the stored position
+        // Keep cube at stored position
         if (cubeSpawned && cubePosition) {
             cube.position.copy(cubePosition);
             cube.visible = true;
