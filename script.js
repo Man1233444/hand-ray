@@ -3,32 +3,30 @@ let canvas = document.getElementById('qr-canvas');
 let ctx = canvas.getContext('2d');
 
 let scene, camera3D, renderer, cube;
-let cubeWorldPos = null;
 let lastDetectionTime = 0;
-const disappearDelay = 1500; // milliseconds
-const smoothing = 0.08;
-
-let lastPositions = [];
+const disappearDelay = 1500;
+const smoothing = 0.1;
 
 // Initialize Three.js
 function initAR() {
     scene = new THREE.Scene();
 
     camera3D = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 10);
+    scene.add(camera3D);
+
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0);
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.top = "0";
     renderer.domElement.style.left = "0";
     document.body.appendChild(renderer.domElement);
 
-    // Cube
+    // Cube as child of camera
     let geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
     let material = new THREE.MeshNormalMaterial();
     cube = new THREE.Mesh(geometry, material);
     cube.visible = false;
-    scene.add(cube);
+    camera3D.add(cube);
 
     animate();
 }
@@ -36,19 +34,13 @@ function initAR() {
 // Animate Three.js
 function animate() {
     requestAnimationFrame(animate);
+    renderer.render(scene, camera3D);
 
-    if (cube.visible && cubeWorldPos) {
-        cube.position.lerp(cubeWorldPos, smoothing);
-        cube.lookAt(camera3D.position);
-    }
-
+    // Hide cube if QR lost for a while
     if (cube.visible && Date.now() - lastDetectionTime > disappearDelay) {
         cube.visible = false;
-        cubeWorldPos = null;
-        lastPositions = [];
+        cube.position.set(0, 0, 0);
     }
-
-    renderer.render(scene, camera3D);
 }
 
 // Camera access
@@ -74,33 +66,19 @@ function tick() {
 
         if (code) {
             lastDetectionTime = Date.now();
+            cube.visible = true;
 
-            // Compute QR center
+            // Map QR center to camera-local coordinates
             let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
             let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
 
-            let xNorm = (centerX / canvas.width - 0.5) * 0.5;
-            let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
+            // Normalize -1 to 1
+            let xNorm = (centerX / canvas.width - 0.5) * 2;
+            let yNorm = -(centerY / canvas.height - 0.5) * 2;
 
-            let vector = new THREE.Vector3(xNorm, yNorm, -0.5);
-            vector.unproject(camera3D);
-
-            // Add to smoothing buffer
-            lastPositions.push(vector.clone());
-            if (lastPositions.length > 5) lastPositions.shift();
-
-            // Average buffer
-            let avg = new THREE.Vector3(0, 0, 0);
-            lastPositions.forEach(v => avg.add(v));
-            avg.divideScalar(lastPositions.length);
-
-            // If first detection, set cube position immediately
-            if (!cube.visible) {
-                cubeWorldPos = avg.clone();
-                cube.visible = true;
-            } else {
-                cubeWorldPos.lerp(avg, 0.05);
-            }
+            // Smoothly move cube in front of camera
+            let targetPos = new THREE.Vector3(xNorm * 0.3, yNorm * 0.3, -0.5); // scale to make cube visible
+            cube.position.lerp(targetPos, smoothing);
         }
     }
 
