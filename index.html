@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR.js NFT Cube on GitHub Pages</title>
+  <title>AR.js Marker Cube</title>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background: black; }
   </style>
@@ -15,30 +15,16 @@
 <a-scene
   vr-mode-ui="enabled: false"
   embedded
-  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
-  <!-- NFT marker -->
-  <!-- Put your marker files in /markers/spiderman/ folder in the repo -->
-  <a-nft
-    type="nft"
-    url="markers/spiderman/spiderman"
-    smooth="true"
-    smoothCount="10"
-    smoothTolerance="0.01"
-    smoothThreshold="0.01">
-
-    <!-- Cube attached to marker -->
-    <a-box
-      position="0 0.25 0"
-      rotation="0 45 0"
-      scale="0.5 0.5 0.5"
-      color="#FF0000">
-    </a-box>
-
-  </a-nft>
+  <!-- Regular Hiro marker -->
+  <a-marker preset="hiro">
+    <!-- Cube -->
+    <a-box position="0 0.5 0" rotation="0 45 0" scale="0.5 0.5 0.5" color="#FF0000"></a-box>
+  </a-marker>
 
   <!-- Camera -->
-  <a-entity camera position="0 0 0" look-controls></a-entity>
+  <a-entity camera></a-entity>
 
 </a-scene>
 </body>
