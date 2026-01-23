@@ -3,8 +3,10 @@ let canvas = document.getElementById('qr-canvas');
 let ctx = canvas.getContext('2d');
 
 let scene, camera3D, renderer, cube;
-let cubeWorldPos = null; // Fixed world position for cube
-let smoothing = 0.1; // 0.05-0.2, adjust for smoothness
+let cubeWorldPos = null;      // Fixed world position
+let lastDetectionTime = 0;    // Timestamp of last QR detection
+const disappearDelay = 1000;  // milliseconds
+const smoothing = 0.1;
 
 // Initialize Three.js
 function initAR() {
@@ -33,11 +35,16 @@ function initAR() {
 function animate() {
     requestAnimationFrame(animate);
 
-    if (cube.visible && cubeWorldPos) {
-        // Smoothly move cube to fixed world position
+    // Only move cube if it has a world position
+    if (cubeWorldPos) {
         cube.position.lerp(cubeWorldPos, smoothing);
-        // Cube always faces camera
         cube.lookAt(camera3D.position);
+    }
+
+    // Hide cube if QR code hasn’t been seen for a while
+    if (cube.visible && Date.now() - lastDetectionTime > disappearDelay) {
+        cube.visible = false;
+        cubeWorldPos = null;
     }
 
     renderer.render(scene, camera3D);
@@ -67,24 +74,21 @@ function tick() {
         let code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code) {
-            if (!cube.visible) {
-                // First detection: set cube visible and fix world position
-                cube.visible = true;
+            lastDetectionTime = Date.now(); // Reset disappear timer
 
-                // Map QR center to normalized coordinates (-0.5 to 0.5)
-                let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
-                let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
+            // Map QR center to normalized coordinates (-0.5 to 0.5)
+            let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width/2;
+            let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height/2;
 
-                let xNorm = (centerX / canvas.width - 0.5) * 0.5;
-                let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
+            let xNorm = (centerX / canvas.width - 0.5) * 0.5;
+            let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
 
-                // Convert to world coordinates in front of camera
-                let vector = new THREE.Vector3(xNorm, yNorm, -0.5);
-                vector.unproject(camera3D);
-                cubeWorldPos = vector.clone(); // Fix cube in world space
-            }
-        } else {
-            // Optional: keep cube visible for smoothing instead of disappearing immediately
+            // Convert to world coordinates in front of camera
+            let vector = new THREE.Vector3(xNorm, yNorm, -0.5);
+            vector.unproject(camera3D);
+            cubeWorldPos = vector.clone();
+
+            cube.visible = true; // Ensure cube is visible
         }
     }
 
