@@ -37,6 +37,12 @@
     overflow: hidden;
   }
 
+  #video-container video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
   canvas {
     position: absolute;
     top: 0; left: 0;
@@ -65,7 +71,7 @@ const startBtn = document.getElementById('startBtn');
 const startScreen = document.getElementById('startScreen');
 const videoContainer = document.getElementById('video-container');
 
-// Generate barcode for printing
+// Printable barcode
 JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
 
 let scene, camera, renderer, cube;
@@ -98,6 +104,7 @@ function initThreeJS() {
   animate();
 }
 
+// Animate Three.js
 function animate() {
   requestAnimationFrame(animate);
   if(cube.visible){
@@ -107,38 +114,36 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// Start Quagga barcode scanning
+// Start QuaggaJS
 function startQuagga() {
   Quagga.init({
     inputStream: {
-      type : "LiveStream",
+      type: "LiveStream",
       target: videoContainer,
-      constraints: {
-        facingMode: "environment"
-      }
+      constraints: { facingMode: "environment" }
     },
-    decoder: {
-      readers: ["code_128_reader"]
-    },
+    decoder: { readers: ["code_128_reader"] },
     locate: true
-  }, function(err) {
-      if(err){
-          console.log(err);
-          return;
-      }
-      Quagga.start();
+  }, function(err){
+    if(err){ console.log(err); return; }
+    Quagga.start();
   });
 
   Quagga.onDetected(data => {
     if(data && data.codeResult && data.codeResult.code === "AR123456"){
       cube.visible = true;
-    } else {
-      cube.visible = false;
+
+      // Optionally move cube to center (simplified)
+      cube.position.set(0,0,0);
     }
   });
 
   Quagga.onProcessed(() => {
-    if(!cube.visible) cube.visible = false;
+    // Hide cube if barcode not detected
+    if(!cube.visible) {
+      cube.visible = false;
+      cube.position.set(0, -1000, 0); // move offscreen
+    }
   });
 }
 </script>
