@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR.js Marker Cube Example</title>
+  <title>AR.js Marker Cube Demo</title>
   <!-- A-Frame library -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <!-- AR.js for A-Frame -->
@@ -15,16 +15,16 @@
 <body>
 
 <a-scene
-  vr-mode-ui="enabled: false"
   embedded
+  vr-mode-ui="enabled: false"
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true; markersAreaEnabled: false">
 
-  <!-- Hiro Marker -->
+  <!-- Standard Hiro marker -->
   <a-marker preset="hiro">
-    <!-- Rotating 3D Cube -->
+    <!-- Cube -->
     <a-box 
       position="0 0.5 0" 
-      rotation="0 0 0" 
+      rotation="0 45 0" 
       scale="0.5 0.5 0.5" 
       color="#FF0000"
       animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
