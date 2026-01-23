@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mobile AR Barcode Scanner</title>
+<title>Mobile AR Barcode Tracker</title>
 <style>
   body, html {
     margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
@@ -54,9 +54,9 @@
 <body>
 
 <div id="startScreen">
-  <h1>AR Barcode Scanner (Mobile Only)</h1>
+  <h1>AR Barcode Tracker</h1>
   <svg id="barcode"></svg>
-  <button id="startBtn">Start</button>
+  <button id="startBtn">Start AR</button>
   <p>Take a screenshot of the barcode to print it.</p>
 </div>
 
@@ -76,11 +76,17 @@ const videoContainer = document.getElementById('video-container');
 JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
 
 let scene, camera, renderer, cube;
-let cubeVisible = false; // track cube state
+let cubeVisible = false;
 
-// Start button
-startBtn.onclick = () => {
+// Start AR
+startBtn.onclick = async () => {
   startScreen.style.display = 'none';
+
+  // Fullscreen request
+  if (document.documentElement.requestFullscreen) {
+    await document.documentElement.requestFullscreen();
+  }
+
   initThreeJS();
   startQuagga();
 };
@@ -96,17 +102,16 @@ function initThreeJS() {
   renderer.setClearColor(0x000000, 0);
   document.body.appendChild(renderer.domElement);
 
-  const geometry = new THREE.BoxGeometry();
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshNormalMaterial();
   cube = new THREE.Mesh(geometry, material);
   cube.visible = false;
-  cube.scale.set(0.5, 0.5, 0.5);
   scene.add(cube);
 
   animate();
 }
 
-// Animate Three.js scene
+// Animate Three.js
 function animate() {
   requestAnimationFrame(animate);
   if(cube.visible){
@@ -131,24 +136,50 @@ function startQuagga() {
     Quagga.start();
   });
 
-  // When barcode is detected
-  Quagga.onDetected(data => {
-    if(data && data.codeResult && data.codeResult.code === "AR123456"){
-      cube.visible = true;
-      cube.position.set(0, 0, 0); // move to center
-      cubeVisible = true;
+  Quagga.onProcessed(result => {
+    // Hide cube if no barcode detected
+    if(!result || !result.boxes || result.boxes.length === 0){
+      cube.visible = false;
+      cube.position.set(0, -1000, 0); // move offscreen
+      cubeVisible = false;
+      return;
     }
   });
 
-  // After each frame processed, hide cube if no barcode
-  Quagga.onProcessed(result => {
-    if(cubeVisible){
-      const boxes = result && result.boxes ? result.boxes : [];
-      if(boxes.length === 0){
-        cube.visible = false;
-        cube.position.set(0, -1000, 0); // move offscreen
-        cubeVisible = false;
-      }
+  Quagga.onDetected(data => {
+    if(data && data.codeResult && data.codeResult.code === "AR123456"){
+      cubeVisible = true;
+      cube.visible = true;
+
+      // Get barcode corners
+      const corners = data.box; // array of 4 points
+      const tl = corners[0];
+      const tr = corners[1];
+      const br = corners[2];
+      const bl = corners[3];
+
+      // Compute center in screen coordinates
+      const centerX = (tl.x + tr.x + br.x + bl.x)/4;
+      const centerY = (tl.y + tr.y + br.y + bl.y)/4;
+
+      // Convert to normalized device coordinates (-1 to 1)
+      const nx = (centerX / videoContainer.offsetWidth) * 2 - 1;
+      const ny = -(centerY / videoContainer.offsetHeight) * 2 + 1;
+
+      const vector = new THREE.Vector3(nx, ny, 0.5);
+      vector.unproject(camera);
+
+      cube.position.copy(vector);
+
+      // Compute width and height of barcode
+      const width = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+      const height = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+      const scale = Math.max(width, height) / videoContainer.offsetWidth * 5; // adjust factor
+      cube.scale.set(scale, scale, scale);
+
+      // Compute rotation angle (angle of top edge)
+      const angle = Math.atan2(tr.y - tl.y, tr.x - tl.x);
+      cube.rotation.set(0, 0, -angle);
     }
   });
 }
