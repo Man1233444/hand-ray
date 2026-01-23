@@ -1,20 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>AR QR Cube Web</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>AR QR Cube</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <!-- MindAR + Three.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.1/dist/mindar-image-three.prod.js"></script>
 </head>
 <body>
-    <!-- Video feed from camera -->
-    <video id="camera" autoplay playsinline></video>
-    <!-- Canvas for QR scanning -->
-    <canvas id="qr-canvas" style="display:none;"></canvas>
+  <!-- AR container -->
+  <div id="ar-container"></div>
 
-    <!-- Three.js and jsQR -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
-    <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+        container: document.querySelector("#ar-container"),
+        imageTargetSrc: "https://cdn.jsdelivr.net/gh/MindAR-js/mindar-image/examples/assets/targets/qr.mind",
+        maxTrack: 1
+      });
+
+      const { renderer, scene, camera } = mindarThree;
+
+      // Create cube
+      const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+      const material = new THREE.MeshNormalMaterial();
+      const cube = new THREE.Mesh(geometry, material);
+
+      // Add cube as child of the first target anchor
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(cube);
+
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+    });
+  </script>
 </body>
 </html>
