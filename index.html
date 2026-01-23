@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -14,20 +14,18 @@
 </head>
 <body>
 
-<a-scene mindar-image="imageTargetSrc: image.mind;" 
+<a-scene mindar-image="imageTargetSrc: my-image.mind;" 
          color-space="sRGB"
-         device-orientation-permission-ui="enabled: false">
+         device-orientation-permission-ui="enabled: false"
+         embedded>
 
-  <a-assets>
-    <!-- Cube color reference, can be anything -->
-  </a-assets>
-
-  <!-- Camera -->
   <a-camera position="0 0 0"></a-camera>
 
-  <!-- Tracked target -->
+  <!-- Tracked image -->
   <a-entity mindar-image-target="targetIndex: 0">
-    <a-box position="0 0.5 0" rotation="0 45 0" scale="0.3 0.3 0.3" color="#FF0000"></a-box>
+    <a-box position="0 0.5 0" rotation="0 45 0" scale="0.3 0.3 0.3" color="#FF0000"
+           animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
+    </a-box>
   </a-entity>
 
 </a-scene>
