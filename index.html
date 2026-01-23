@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MindAR Fullscreen Example</title>
+  <title>AR Cube Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -37,7 +37,8 @@
 
 <div id="startScreen">
   <h1>Print This Marker</h1>
-  <p>Take a screenshot to print it</p>
+  <p>Take a screenshot and print it</p>
+  <!-- Using a working official MindAR example marker -->
   <img id="marker" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" alt="marker">
   <button id="startBtn">Start AR</button>
 </div>
@@ -72,15 +73,14 @@
   const startScreen = document.getElementById('startScreen');
 
   startBtn.onclick = async () => {
-    // Hide the start screen
     startScreen.style.display = 'none';
 
-    // Request fullscreen for mobile
+    // Fullscreen for mobile
     if (document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
 
-    // Start the MindAR scene
+    // Start the AR scene
     const sceneEl = document.querySelector('a-scene');
     const mindarComponent = sceneEl.components['mindar-image'];
     if (mindarComponent) mindarComponent.start();
