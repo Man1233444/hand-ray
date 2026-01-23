@@ -3,7 +3,8 @@ let canvas = document.getElementById('qr-canvas');
 let ctx = canvas.getContext('2d');
 
 let scene, camera3D, renderer, cube;
-let targetPos = new THREE.Vector3(); // Smooth target
+let cubeWorldPos = null; // Fixed world position for cube
+let smoothing = 0.1; // 0.05-0.2, adjust for smoothness
 
 // Initialize Three.js
 function initAR() {
@@ -32,11 +33,10 @@ function initAR() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Smoothly move cube to target
-    if (cube.visible) {
-        cube.position.lerp(targetPos, 0.2); // 0.2 = smoothing factor
-
-        // Optional: make cube face camera
+    if (cube.visible && cubeWorldPos) {
+        // Smoothly move cube to fixed world position
+        cube.position.lerp(cubeWorldPos, smoothing);
+        // Cube always faces camera
         cube.lookAt(camera3D.position);
     }
 
@@ -67,20 +67,24 @@ function tick() {
         let code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code) {
-            cube.visible = true;
+            if (!cube.visible) {
+                // First detection: set cube visible and fix world position
+                cube.visible = true;
 
-            // Map QR center to normalized coordinates
-            let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
-            let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
+                // Map QR center to normalized coordinates (-0.5 to 0.5)
+                let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
+                let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
 
-            let xNorm = (centerX / canvas.width - 0.5) * 0.5; 
-            let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
+                let xNorm = (centerX / canvas.width - 0.5) * 0.5;
+                let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
 
-            // Set target position for smoothing
-            targetPos.set(xNorm, yNorm, -0.5);
+                // Convert to world coordinates in front of camera
+                let vector = new THREE.Vector3(xNorm, yNorm, -0.5);
+                vector.unproject(camera3D);
+                cubeWorldPos = vector.clone(); // Fix cube in world space
+            }
         } else {
-            // Keep cube visible but fade slowly
-            // You can also just hide: cube.visible = false;
+            // Optional: keep cube visible for smoothing instead of disappearing immediately
         }
     }
 
