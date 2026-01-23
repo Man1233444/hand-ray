@@ -11,17 +11,18 @@ function initAR() {
     camera3D = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 10);
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0); // transparent background
+    renderer.setClearColor(0x000000, 0); // transparent
+    renderer.domElement.style.position = "absolute";
+    renderer.domElement.style.top = "0";
+    renderer.domElement.style.left = "0";
     document.body.appendChild(renderer.domElement);
 
-    // Cube setup
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshNormalMaterial();
+    // Cube
+    let geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    let material = new THREE.MeshNormalMaterial();
     cube = new THREE.Mesh(geometry, material);
     cube.visible = false;
     scene.add(cube);
-
-    camera3D.position.z = 0;
 
     animate();
 }
@@ -32,11 +33,11 @@ function animate() {
     renderer.render(scene, camera3D);
 }
 
-// Start camera
+// Access camera
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
     .then(stream => {
         video.srcObject = stream;
-        video.setAttribute("playsinline", true);
+        video.setAttribute("playsinline", true); // important for mobile
         video.play();
         initAR();
         tick();
@@ -45,29 +46,28 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         alert("Camera access denied: " + err);
     });
 
-// Scan QR codes
+// QR detection loop
 function tick() {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code) {
             cube.visible = true;
 
-            // If location exists, calculate center
-            let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width / 2;
-            let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height / 2;
+            // Map QR center to screen coords
+            let centerX = code.location ? (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2 : canvas.width/2;
+            let centerY = code.location ? (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2 : canvas.height/2;
 
-            // Normalize coordinates (-0.5 to 0.5)
-            const xNorm = (centerX / canvas.width - 0.5);
-            const yNorm = -(centerY / canvas.height - 0.5);
+            // Normalized coordinates
+            let xNorm = (centerX / canvas.width - 0.5) * 0.5; 
+            let yNorm = -(centerY / canvas.height - 0.5) * 0.5;
 
-            // Place cube in front of camera
-            cube.position.set(xNorm * 0.5, yNorm * 0.5, -0.5);
+            cube.position.set(xNorm, yNorm, -0.5); // in front of camera
         } else {
             cube.visible = false;
         }
