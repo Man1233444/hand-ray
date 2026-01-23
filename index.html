@@ -38,26 +38,26 @@
 <div id="startScreen">
   <h1>Print This Marker</h1>
   <p>Take a screenshot and print it</p>
+  <!-- Using a working official MindAR example marker -->
   <img id="marker" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" alt="marker">
   <button id="startBtn">Start AR</button>
 </div>
 
-<a-scene mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind; 
-                         autoStart: false"
+<a-scene mindar-image="imageTargetSrc: https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind; autoStart: false;"
          color-space="sRGB"
          renderer="colorManagement: true, physicallyCorrectLights"
          vr-mode-ui="enabled: false"
          device-orientation-permission-ui="enabled: false">
 
   <a-assets>
-    <!-- Nothing extra, we will use a simple cube -->
+    <!-- No extra assets needed -->
   </a-assets>
 
   <a-camera position="0 0 0"></a-camera>
 
   <!-- Anchor for the marker -->
   <a-entity mindar-image-target="targetIndex: 0">
-    <!-- Cube -->
+    <!-- Rotating cube -->
     <a-box position="0 0 0.1" 
            rotation="0 45 0" 
            scale="0.3 0.3 0.3" 
@@ -65,6 +65,7 @@
            animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
     </a-box>
   </a-entity>
+
 </a-scene>
 
 <script>
@@ -74,7 +75,7 @@
   startBtn.onclick = async () => {
     startScreen.style.display = 'none';
 
-    // Request fullscreen for mobile
+    // Fullscreen for mobile
     if (document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
