@@ -67,6 +67,7 @@
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 
 <script>
+// Elements
 const startBtn = document.getElementById('startBtn');
 const startScreen = document.getElementById('startScreen');
 const videoContainer = document.getElementById('video-container');
@@ -75,6 +76,7 @@ const videoContainer = document.getElementById('video-container');
 JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
 
 let scene, camera, renderer, cube;
+let cubeVisible = false; // track cube state
 
 // Start button
 startBtn.onclick = () => {
@@ -98,13 +100,13 @@ function initThreeJS() {
   const material = new THREE.MeshNormalMaterial();
   cube = new THREE.Mesh(geometry, material);
   cube.visible = false;
-  cube.scale.set(0.5,0.5,0.5);
+  cube.scale.set(0.5, 0.5, 0.5);
   scene.add(cube);
 
   animate();
 }
 
-// Animate Three.js
+// Animate Three.js scene
 function animate() {
   requestAnimationFrame(animate);
   if(cube.visible){
@@ -114,7 +116,7 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// Start QuaggaJS
+// Start QuaggaJS barcode detection
 function startQuagga() {
   Quagga.init({
     inputStream: {
@@ -129,20 +131,24 @@ function startQuagga() {
     Quagga.start();
   });
 
+  // When barcode is detected
   Quagga.onDetected(data => {
     if(data && data.codeResult && data.codeResult.code === "AR123456"){
       cube.visible = true;
-
-      // Optionally move cube to center (simplified)
-      cube.position.set(0,0,0);
+      cube.position.set(0, 0, 0); // move to center
+      cubeVisible = true;
     }
   });
 
-  Quagga.onProcessed(() => {
-    // Hide cube if barcode not detected
-    if(!cube.visible) {
-      cube.visible = false;
-      cube.position.set(0, -1000, 0); // move offscreen
+  // After each frame processed, hide cube if no barcode
+  Quagga.onProcessed(result => {
+    if(cubeVisible){
+      const boxes = result && result.boxes ? result.boxes : [];
+      if(boxes.length === 0){
+        cube.visible = false;
+        cube.position.set(0, -1000, 0); // move offscreen
+        cubeVisible = false;
+      }
     }
   });
 }
