@@ -5,25 +5,33 @@
     <title>AR QR Cube Web</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="style.css">
+    <!-- AR.js + Three.js -->
+    <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/AR.js/three.js/build/ar-threex.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
 </head>
 <body>
-    <!-- Start screen -->
+    <!-- Start Screen -->
     <div id="start-screen">
         <h1>AR QR Cube</h1>
         <button id="start-btn">Start AR</button>
-        <p>Allow camera access when prompted</p>
+        <p>Point your camera at the QR code to spawn a cube</p>
     </div>
 
-    <!-- Video feed for camera (must have separate closing tag) -->
-    <video id="camera" autoplay playsinline></video>
+    <!-- AR.js Scene -->
+    <a-scene
+        embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; antialias: true"
+        id="ar-scene"
+        style="display:none;"
+    >
+        <a-marker preset="hiro" id="marker">
+            <a-box id="cube" position="0 0.5 0" material="color: red;" visible="false"></a-box>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
 
-    <!-- Hidden canvas for QR scanning -->
-    <canvas id="qr-canvas"></canvas>
-
-    <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
-
