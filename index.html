@@ -2,187 +2,98 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>MindAR.js Marker AR</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mobile AR Barcode Tracker</title>
 <style>
   body, html {
     margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
     background: black;
   }
-
   #startScreen {
     position: absolute;
     width: 100%; height: 100%;
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
-    background-color: #f0f0f0;
-    text-align: center;
+    background: #fff;
     z-index: 10;
+    text-align: center;
   }
-
   #startBtn {
-    margin-top: 20px;
     padding: 1em 2em;
     font-size: 1.5em;
     cursor: pointer;
   }
-
-  svg { margin-top: 20px; }
-
-  #video-container {
-    position: absolute;
-    top: 0; left: 0;
+  svg {
+    margin-top: 20px;
+  }
+  #ar-container {
     width: 100%; height: 100%;
-    z-index: 0;
-    overflow: hidden;
-  }
-
-  #video-container video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-  }
-
-  canvas {
-    position: absolute;
-    top: 0; left: 0;
-    z-index: 1;
-    pointer-events: none;
+    position: absolute; top: 0; left: 0;
   }
 </style>
 </head>
 <body>
 
 <div id="startScreen">
-  <h1>AR Barcode Tracker</h1>
+  <h1>Print This Marker</h1>
   <svg id="barcode"></svg>
+  <p>Take a screenshot or print this image</p>
   <button id="startBtn">Start AR</button>
-  <p>Take a screenshot of the barcode to print it.</p>
 </div>
 
-<div id="video-container"></div>
+<div id="ar-container"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<!-- Three.js + MindAR -->
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { MindARThree } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js';
 
-<script>
-// Elements
-const startBtn = document.getElementById('startBtn');
-const startScreen = document.getElementById('startScreen');
-const videoContainer = document.getElementById('video-container');
+document.getElementById('startBtn').onclick = async () => {
+  document.getElementById('startScreen').style.display = 'none';
 
-// Printable barcode
-JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
-
-let scene, camera, renderer, cube;
-let cubeVisible = false;
-
-// Start AR
-startBtn.onclick = async () => {
-  startScreen.style.display = 'none';
-
-  // Fullscreen request
+  // Request fullscreen
   if (document.documentElement.requestFullscreen) {
     await document.documentElement.requestFullscreen();
   }
 
-  initThreeJS();
-  startQuagga();
-};
+  const mindAR = new MindARThree({
+    container: document.querySelector("#ar-container"),
+    imageTargetSrc: 'targets.mind', // your target file
+  });
 
-// Initialize Three.js
-function initThreeJS() {
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.z = 5;
+  const { renderer, scene, camera } = mindAR;
 
-  renderer = new THREE.WebGLRenderer({ alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x000000, 0);
-  document.body.appendChild(renderer.domElement);
-
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  // Add a cube that will track the marker
+  const geometry = new THREE.BoxGeometry(1,1,1);
   const material = new THREE.MeshNormalMaterial();
-  cube = new THREE.Mesh(geometry, material);
-  cube.visible = false;
-  scene.add(cube);
+  const cube = new THREE.Mesh(geometry, material);
 
-  animate();
-}
+  const anchor = mindAR.addAnchor(0); // index 0 for first target
+  anchor.group.add(cube); // attach cube to marker
 
-// Animate Three.js
-function animate() {
-  requestAnimationFrame(animate);
-  if(cube.visible){
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-  }
-  renderer.render(scene, camera);
-}
+  anchor.onTargetFound = () => {
+    cube.visible = true;
+  };
+  anchor.onTargetLost = () => {
+    cube.visible = false;
+  };
 
-// Start QuaggaJS barcode detection
-function startQuagga() {
-  Quagga.init({
-    inputStream: {
-      type: "LiveStream",
-      target: videoContainer,
-      constraints: { facingMode: "environment" }
-    },
-    decoder: { readers: ["code_128_reader"] },
-    locate: true
-  }, function(err){
-    if(err){ console.log(err); return; }
-    Quagga.start();
+  await mindAR.start();
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
   });
+};
+</script>
 
-  Quagga.onProcessed(result => {
-    // Hide cube if no barcode detected
-    if(!result || !result.boxes || result.boxes.length === 0){
-      cube.visible = false;
-      cube.position.set(0, -1000, 0); // move offscreen
-      cubeVisible = false;
-      return;
-    }
-  });
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
-  Quagga.onDetected(data => {
-    if(data && data.codeResult && data.codeResult.code === "AR123456"){
-      cubeVisible = true;
-      cube.visible = true;
-
-      // Get barcode corners
-      const corners = data.box; // array of 4 points
-      const tl = corners[0];
-      const tr = corners[1];
-      const br = corners[2];
-      const bl = corners[3];
-
-      // Compute center in screen coordinates
-      const centerX = (tl.x + tr.x + br.x + bl.x)/4;
-      const centerY = (tl.y + tr.y + br.y + bl.y)/4;
-
-      // Convert to normalized device coordinates (-1 to 1)
-      const nx = (centerX / videoContainer.offsetWidth) * 2 - 1;
-      const ny = -(centerY / videoContainer.offsetHeight) * 2 + 1;
-
-      const vector = new THREE.Vector3(nx, ny, 0.5);
-      vector.unproject(camera);
-
-      cube.position.copy(vector);
-
-      // Compute width and height of barcode
-      const width = Math.hypot(tr.x - tl.x, tr.y - tl.y);
-      const height = Math.hypot(bl.x - tl.x, bl.y - tl.y);
-      const scale = Math.max(width, height) / videoContainer.offsetWidth * 5; // adjust factor
-      cube.scale.set(scale, scale, scale);
-
-      // Compute rotation angle (angle of top edge)
-      const angle = Math.atan2(tr.y - tl.y, tr.x - tl.x);
-      cube.rotation.set(0, 0, -angle);
-    }
-  });
-}
+<script>
+// Generate a printable marker (barcode style) but you can use any image for MindAR conversion
+JsBarcode("#barcode", "AR123456", {
+  format: "CODE128",
+  width: 4,
+  height: 150,
+});
 </script>
 
 </body>
