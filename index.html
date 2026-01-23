@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WebAR Image Tracking</title>
+  <title>WebAR Image Tracking Cube</title>
 
-  <!-- MindAR JS Libraries -->
+  <!-- MindAR + A-Frame libraries -->
   <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image-aframe.prod.js"></script>
@@ -14,16 +14,15 @@
 </head>
 <body>
 
-<a-scene mindar-image="imageTargetSrc: myImage.mind;">
+<a-scene mindar-image="imageTargetSrc: myImage.mind;" embedded>
 
   <!-- Camera -->
   <a-camera position="0 0 0"></a-camera>
 
-  <!-- Tracked image target: index 0 is your first (only) image -->
+  <!-- Tracked image target -->
   <a-entity mindar-image-target="targetIndex: 0">
-    <!-- 3D Box that appears on your tracked image -->
-    <a-box position="0 0.5 0" rotation="0 45 0"
-           scale="0.3 0.3 0.3" color="#FF0000"
+    <!-- Cube that appears on top of your uploaded image -->
+    <a-box position="0 0.5 0" rotation="0 45 0" scale="0.3 0.3 0.3" color="#00FFFF"
            animation="property: rotation; to: 0 360 0; loop: true; dur: 4000">
     </a-box>
   </a-entity>
