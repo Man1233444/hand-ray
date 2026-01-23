@@ -29,12 +29,12 @@
 
   svg { margin-top: 20px; }
 
-  video {
+  #video-container {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    object-fit: cover;
     z-index: 0;
+    overflow: hidden;
   }
 
   canvas {
@@ -54,7 +54,7 @@
   <p>Take a screenshot of the barcode to print it.</p>
 </div>
 
-<video id="video" autoplay playsinline muted></video>
+<div id="video-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -63,35 +63,24 @@
 <script>
 const startBtn = document.getElementById('startBtn');
 const startScreen = document.getElementById('startScreen');
-const video = document.getElementById('video');
+const videoContainer = document.getElementById('video-container');
 
-// Printable barcode
+// Generate barcode for printing
 JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 4, height: 150});
 
 let scene, camera, renderer, cube;
 
 // Start button
-startBtn.onclick = async () => {
+startBtn.onclick = () => {
   startScreen.style.display = 'none';
-
-  // Start camera
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-  video.srcObject = stream;
-  video.play();
-
-  video.addEventListener('loadedmetadata', () => {
-    // Initialize Three.js
-    init3D(video.videoWidth / video.videoHeight);
-
-    // Start QuaggaJS for barcode scanning
-    startQuagga();
-  });
+  initThreeJS();
+  startQuagga();
 };
 
 // Initialize Three.js
-function init3D(aspect) {
+function initThreeJS() {
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
   camera.position.z = 5;
 
   renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -103,13 +92,12 @@ function init3D(aspect) {
   const material = new THREE.MeshNormalMaterial();
   cube = new THREE.Mesh(geometry, material);
   cube.visible = false;
-  cube.scale.set(0.5, 0.5, 0.5);
+  cube.scale.set(0.5,0.5,0.5);
   scene.add(cube);
 
   animate();
 }
 
-// Animate Three.js scene
 function animate() {
   requestAnimationFrame(animate);
   if(cube.visible){
@@ -119,21 +107,22 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// Start Quagga barcode detection
+// Start Quagga barcode scanning
 function startQuagga() {
   Quagga.init({
-    inputStream : {
-      name : "Live",
+    inputStream: {
       type : "LiveStream",
-      target: video, // video element as input
-      constraints: { facingMode: "environment" }
+      target: videoContainer,
+      constraints: {
+        facingMode: "environment"
+      }
     },
-    decoder : {
-      readers : ["code_128_reader"]
+    decoder: {
+      readers: ["code_128_reader"]
     },
     locate: true
   }, function(err) {
-      if (err) {
+      if(err){
           console.log(err);
           return;
       }
@@ -141,8 +130,7 @@ function startQuagga() {
   });
 
   Quagga.onDetected(data => {
-    if (data && data.codeResult && data.codeResult.code === "AR123456") {
-      // Show cube when barcode detected
+    if(data && data.codeResult && data.codeResult.code === "AR123456"){
       cube.visible = true;
     } else {
       cube.visible = false;
@@ -150,10 +138,7 @@ function startQuagga() {
   });
 
   Quagga.onProcessed(() => {
-    // hide cube if barcode not detected
-    if(!cube.visible){
-      cube.visible = false;
-    }
+    if(!cube.visible) cube.visible = false;
   });
 }
 </script>
