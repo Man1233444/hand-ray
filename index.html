@@ -1,99 +1,126 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sniper Scope Stable Zoom</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AR Barcode Scanner</title>
 <style>
-html, body { margin:0; padding:0; width:100%; height:100%; background:black; overflow:hidden; }
-#video { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; transition: transform 0.2s linear; }
-#start { position:fixed; inset:0; background:black; color:white; font-size:32px; display:flex; align-items:center; justify-content:center; z-index:10; cursor:pointer; }
-.sniper-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5; }
-.scope-circle { position:absolute; width:70vmin; height:70vmin; border:4px solid white; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%); }
-.crosshair { position:absolute; width:60px; height:60px; top:50%; left:50%; transform:translate(-50%,-50%); }
-.crosshair::before, .crosshair::after { content:""; position:absolute; background:red; }
-.crosshair::before { width:100%; height:3px; top:50%; left:0; transform:translateY(-50%); }
-.crosshair::after { width:3px; height:100%; top:0; left:50%; transform:translateX(-50%); }
+  body, html {
+    margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
+    text-align: center;
+  }
+  #startScreen {
+    position: absolute;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background-color: #f0f0f0;
+  }
+  #startBtn {
+    margin-top: 20px;
+    padding: 1em 2em;
+    font-size: 1.5em;
+    cursor: pointer;
+  }
+  #video { display: none; }
+  canvas { position: absolute; top: 0; left: 0; }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline muted></video>
-<div id="start">TAP TO START</div>
-
-<div class="sniper-overlay">
-  <div class="scope-circle"></div>
-  <div class="crosshair"></div>
+<div id="startScreen">
+  <h1>AR Barcode Scanner</h1>
+  <svg id="barcode"></svg>
+  <button id="startBtn">Start</button>
 </div>
 
+<video id="video" autoplay></video>
+<canvas id="overlay"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
 <script>
-const video = document.getElementById("video");
-const startBtn = document.getElementById("start");
+const startBtn = document.getElementById('startBtn');
+const startScreen = document.getElementById('startScreen');
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
 
-let steadyTime = 0;
-const maxZoom = 2;
-const zoomDuration = 17; // seconds to full zoom
-let zoomLevel = 1;
+// Generate a barcode you can print
+JsBarcode("#barcode", "AR123456", {format: "CODE128", width: 2, height: 100});
 
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
+// Three.js variables
+let scene, camera, renderer, cube;
+let scanning = false;
 
-// Movement smoothing
-let pixelHistory = [];
-const historyLength = 10; // more frames for stability
-const movementThreshold = 100; // higher = ignore small shakes
-const smoothFactor = 0.05; // easing zoom
-
-startBtn.addEventListener("click", async () => {
-  startBtn.style.display = "none";
-  document.documentElement.requestFullscreen?.().catch(()=>{});
-
-  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
-  video.srcObject = stream;
-
-  requestAnimationFrame(autoZoom);
-});
-
-function autoZoom(){
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-
-  if(w > 0 && h > 0){
-    canvas.width = w;
-    canvas.height = h;
-    ctx.drawImage(video,0,0,w,h);
-    const data = ctx.getImageData(w/2,h/2,1,1).data;
-    const pixel = [data[0],data[1],data[2]];
-
-    // Save last few pixels
-    pixelHistory.push(pixel);
-    if(pixelHistory.length > historyLength) pixelHistory.shift();
-
-    // Compute average delta over history
-    let movementDetected = false;
-    if(pixelHistory.length >= 2){
-      let totalDelta = 0;
-      for(let i=1;i<pixelHistory.length;i++){
-        const prev = pixelHistory[i-1];
-        const curr = pixelHistory[i];
-        totalDelta += Math.hypot(curr[0]-prev[0], curr[1]-prev[1], curr[2]-prev[2]);
-      }
-      const avgDelta = totalDelta / (pixelHistory.length-1);
-      if(avgDelta > movementThreshold) movementDetected = true;
-    }
-
-    if(movementDetected){
-      steadyTime = 0; // reset zoom timer
-      zoomLevel += (1 - zoomLevel) * smoothFactor; // ease back
-    } else {
-      steadyTime += 1/60;
-      const targetZoom = 1 + Math.min(steadyTime/zoomDuration,1)*(maxZoom-1);
-      zoomLevel += (targetZoom - zoomLevel) * smoothFactor;
-    }
-
-    video.style.transform = `scale(${zoomLevel})`;
+startBtn.onclick = async () => {
+  // Fullscreen
+  if (document.documentElement.requestFullscreen) {
+    await document.documentElement.requestFullscreen();
   }
 
-  requestAnimationFrame(autoZoom);
+  // Hide start screen
+  startScreen.style.display = 'none';
+
+  // Start camera
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  video.srcObject = stream;
+  video.play();
+
+  scanning = true;
+  overlay.width = window.innerWidth;
+  overlay.height = window.innerHeight;
+
+  init3D();
+  requestAnimationFrame(scanLoop);
+};
+
+// Initialize Three.js scene
+function init3D() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({ alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const geometry = new THREE.BoxGeometry();
+  const material = new THREE.MeshNormalMaterial();
+  cube = new THREE.Mesh(geometry, material);
+  cube.visible = false;
+  scene.add(cube);
+
+  camera.position.z = 5;
+}
+
+// Scan loop
+function scanLoop() {
+  if (!scanning) return;
+
+  overlay.width = video.videoWidth;
+  overlay.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0, overlay.width, overlay.height);
+  const imageData = ctx.getImageData(0, 0, overlay.width, overlay.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+  if (code) {
+    // Show cube at barcode center
+    const x = (code.location.topLeftCorner.x + code.location.bottomRightCorner.x) / 2;
+    const y = (code.location.topLeftCorner.y + code.location.bottomRightCorner.y) / 2;
+
+    // Map 2D camera coords to Three.js coordinates
+    const nx = (x / overlay.width) * 2 - 1;
+    const ny = -(y / overlay.height) * 2 + 1;
+
+    cube.visible = true;
+    cube.position.x = nx * 5;
+    cube.position.y = ny * 5;
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.01;
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(scanLoop);
 }
 </script>
 
